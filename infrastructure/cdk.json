@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json.schemastore.org/cdk.json",
+  "app": "npx ts-node bin/app.ts"
+}
