@@ -148,7 +148,7 @@ export class InfrastructureStack extends cdk.Stack {
       allowMethods: ["POST"],
     });
 
-    // ✅ /forgot/confirm
+    // ✅ /forgot/reset
     const reset = forgot.addResource("reset");
     reset.addMethod(
       "POST",
