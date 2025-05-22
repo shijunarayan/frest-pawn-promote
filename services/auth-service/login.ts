@@ -30,6 +30,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     return {
       statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
       body: JSON.stringify({
         message: "Login successful",
         tokens: response.AuthenticationResult,
@@ -38,6 +42,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   } catch (err: any) {
     return {
       statusCode: 401,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
       body: JSON.stringify({
         error: err.message || "Login failed.",
       }),

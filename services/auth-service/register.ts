@@ -27,6 +27,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     return {
       statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
       body: JSON.stringify({
         message:
           "User registration successful. Please check your email to verify the account.",
@@ -35,6 +39,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   } catch (err: any) {
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
       body: JSON.stringify({ error: err.message || "Registration failed." }),
     };
   }

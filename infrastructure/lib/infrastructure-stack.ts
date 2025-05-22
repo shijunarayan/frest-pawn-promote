@@ -76,6 +76,11 @@ export class InfrastructureStack extends cdk.Stack {
     // ✅ /login endpoint
     const login = api.root.addResource("login");
     login.addMethod("POST", new apigateway.LambdaIntegration(loginLambda));
+    login.addCorsPreflight({
+      allowOrigins: apigateway.Cors.ALL_ORIGINS,
+      allowHeaders: ["Content-Type"],
+      allowMethods: ["POST"],
+    });
 
     // ✅ /register endpoint
     const register = api.root.addResource("register");
@@ -83,9 +88,19 @@ export class InfrastructureStack extends cdk.Stack {
       "POST",
       new apigateway.LambdaIntegration(registerLambda)
     );
+    register.addCorsPreflight({
+      allowOrigins: apigateway.Cors.ALL_ORIGINS,
+      allowHeaders: ["Content-Type"],
+      allowMethods: ["POST"],
+    });
 
     // ✅ /confirm endpoint
     const confirm = api.root.addResource("confirm");
     confirm.addMethod("POST", new apigateway.LambdaIntegration(confirmLambda));
+    confirm.addCorsPreflight({
+      allowOrigins: apigateway.Cors.ALL_ORIGINS,
+      allowHeaders: ["Content-Type"],
+      allowMethods: ["POST"],
+    });
   }
 }
