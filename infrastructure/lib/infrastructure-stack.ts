@@ -82,6 +82,36 @@ export class InfrastructureStack extends cdk.Stack {
       allowMethods: ["POST"],
     });
 
+    const forgotPasswordLambda = new lambda.Function(
+      this,
+      "ForgotPasswordFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: "forgot.initiateForgotPassword",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../services/auth-service")
+        ),
+        environment: {
+          USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+      }
+    );
+
+    const confirmForgotPasswordLambda = new lambda.Function(
+      this,
+      "ConfirmForgotPasswordFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: "forgot.confirmForgotPassword",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../services/auth-service")
+        ),
+        environment: {
+          USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+      }
+    );
+
     // ✅ /register endpoint
     const register = api.root.addResource("register");
     register.addMethod(
@@ -98,6 +128,33 @@ export class InfrastructureStack extends cdk.Stack {
     const confirm = api.root.addResource("confirm");
     confirm.addMethod("POST", new apigateway.LambdaIntegration(confirmLambda));
     confirm.addCorsPreflight({
+      allowOrigins: apigateway.Cors.ALL_ORIGINS,
+      allowHeaders: ["Content-Type"],
+      allowMethods: ["POST"],
+    });
+
+    // ✅ /forgot password endpoint
+    const forgot = api.root.addResource("forgot");
+
+    // ✅ /forgot/initiate
+    const initiate = forgot.addResource("initiate");
+    initiate.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(forgotPasswordLambda)
+    );
+    initiate.addCorsPreflight({
+      allowOrigins: apigateway.Cors.ALL_ORIGINS,
+      allowHeaders: ["Content-Type"],
+      allowMethods: ["POST"],
+    });
+
+    // ✅ /forgot/confirm
+    const reset = forgot.addResource("reset");
+    reset.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(confirmForgotPasswordLambda)
+    );
+    reset.addCorsPreflight({
       allowOrigins: apigateway.Cors.ALL_ORIGINS,
       allowHeaders: ["Content-Type"],
       allowMethods: ["POST"],
