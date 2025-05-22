@@ -26,6 +26,9 @@ export class InfrastructureStack extends cdk.Stack {
 
     const userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
       userPool,
+      authFlows: {
+        userPassword: true, // ✅ Enables USER_PASSWORD_AUTH
+      },
     });
 
     // ✅ Lambda Function for Login
@@ -53,6 +56,17 @@ export class InfrastructureStack extends cdk.Stack {
       },
     });
 
+    const confirmLambda = new lambda.Function(this, "ConfirmFunction", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "confirm.handler",
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "../../services/auth-service")
+      ),
+      environment: {
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+      },
+    });
+
     // ✅ API Gateway
     const api = new apigateway.RestApi(this, "FrestPawnAPI", {
       restApiName: "Frest Pawn API",
@@ -69,5 +83,9 @@ export class InfrastructureStack extends cdk.Stack {
       "POST",
       new apigateway.LambdaIntegration(registerLambda)
     );
+
+    // ✅ /confirm endpoint
+    const confirm = api.root.addResource("confirm");
+    confirm.addMethod("POST", new apigateway.LambdaIntegration(confirmLambda));
   }
 }
