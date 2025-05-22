@@ -6,7 +6,7 @@ frontend:
         - npm ci
     build:
       commands:
-        - echo "Building with NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL"
+        - env | grep -e NEXT_PUBLIC_API_BASE_URL >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next
