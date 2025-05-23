@@ -10,12 +10,12 @@ const client = new CognitoIdentityProviderClient({});
 
 export const initiateForgotPassword: APIGatewayProxyHandler = async (event) => {
   try {
-    const { email } = JSON.parse(event.body || "{}");
+    const { username } = JSON.parse(event.body || "{}");
 
-    if (!email) {
+    if (!username) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Email is required" }),
+        body: JSON.stringify({ error: "Username is required" }),
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Headers": "Content-Type",
@@ -25,7 +25,7 @@ export const initiateForgotPassword: APIGatewayProxyHandler = async (event) => {
 
     const command = new ForgotPasswordCommand({
       ClientId: process.env.USER_POOL_CLIENT_ID,
-      Username: email,
+      Username: username,
     });
 
     await client.send(command);
@@ -52,13 +52,13 @@ export const initiateForgotPassword: APIGatewayProxyHandler = async (event) => {
 
 export const confirmForgotPassword: APIGatewayProxyHandler = async (event) => {
   try {
-    const { email, code, newPassword } = JSON.parse(event.body || "{}");
+    const { username, code, newPassword } = JSON.parse(event.body || "{}");
 
-    if (!email || !code || !newPassword) {
+    if (!username || !code || !newPassword) {
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: "Email, code, and new password are required",
+          error: "Username, code, and new password are required",
         }),
         headers: {
           "Access-Control-Allow-Origin": "*",
@@ -69,7 +69,7 @@ export const confirmForgotPassword: APIGatewayProxyHandler = async (event) => {
 
     const command = new ConfirmForgotPasswordCommand({
       ClientId: process.env.USER_POOL_CLIENT_ID,
-      Username: email,
+      Username: username,
       ConfirmationCode: code,
       Password: newPassword,
     });

@@ -3,17 +3,41 @@ import { Construct } from "constructs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as iam from "aws-cdk-lib/aws-iam";
+
 import * as path from "path";
 
 export class InfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const customMessageLambda = new lambda.Function(
+      this,
+      "CustomMessageLambda",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        code: lambda.Code.fromAsset("../services/auth-service/custom-message"),
+        handler: "index.handler",
+        timeout: cdk.Duration.seconds(10),
+      }
+    );
+
+    customMessageLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["sns:Publish", "ses:SendEmail"],
+        resources: ["*"], // you can restrict this later
+      })
+    );
+
     // ✅ Cognito User Pool
     const userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: "frest-pawn-userpool",
       selfSignUpEnabled: true,
-      signInAliases: { email: true },
+      signInAliases: { username: true },
+      autoVerify: {
+        email: true,
+        phone: true,
+      },
       passwordPolicy: {
         minLength: 8,
         requireSymbols: false,
@@ -22,6 +46,10 @@ export class InfrastructureStack extends cdk.Stack {
         requireUppercase: false,
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      lambdaTriggers: {
+        customMessage: customMessageLambda,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {

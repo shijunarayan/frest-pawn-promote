@@ -8,12 +8,12 @@ const client = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
-    const { email, password } = JSON.parse(event.body || "{}");
+    const { username, password } = JSON.parse(event.body || "{}");
 
-    if (!email || !password) {
+    if (!username || !password) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Email and password are required." }),
+        body: JSON.stringify({ error: "Username and password are required." }),
       };
     }
 
@@ -21,7 +21,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       AuthFlow: "USER_PASSWORD_AUTH",
       ClientId: process.env.USER_POOL_CLIENT_ID!,
       AuthParameters: {
-        USERNAME: email,
+        USERNAME: username,
         PASSWORD: password,
       },
     });

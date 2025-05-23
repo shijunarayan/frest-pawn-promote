@@ -1,6 +1,7 @@
 import {
   CognitoIdentityProviderClient,
-  SignUpCommand,
+  AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { APIGatewayProxyHandler } from "aws-lambda";
 
@@ -8,42 +9,56 @@ const client = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
-    const { email, password } = JSON.parse(event.body || "{}");
+    const {
+      username,
+      email,
+      phone,
+      password,
+      requirePasswordReset = false,
+    } = JSON.parse(event.body || "{}");
 
-    if (!email || !password) {
+    if (!username || !password || (!email && !phone)) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Email and password are required." }),
+        body: JSON.stringify({
+          error:
+            "Username, password, and at least one contact (email or phone) are required.",
+        }),
       };
     }
 
-    const command = new SignUpCommand({
-      ClientId: process.env.USER_POOL_CLIENT_ID!,
-      Username: email,
-      Password: password,
+    // Create user with confirmation code
+    const createUserCommand = new AdminCreateUserCommand({
+      UserPoolId: process.env.USER_POOL_ID!,
+      Username: username,
+      MessageAction: "RESEND",
+      UserAttributes: [
+        ...(email ? [{ Name: "email", Value: email }] : []),
+        ...(phone ? [{ Name: "phone_number", Value: phone }] : []),
+      ],
     });
 
-    await client.send(command);
+    await client.send(createUserCommand);
+
+    // Set password for the user
+    const setPasswordCommand = new AdminSetUserPasswordCommand({
+      UserPoolId: process.env.USER_POOL_ID!,
+      Username: username,
+      Password: password,
+      Permanent: !requirePasswordReset,
+    });
+
+    await client.send(setPasswordCommand);
 
     return {
       statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-      body: JSON.stringify({
-        message:
-          "User registration successful. Please check your email to verify the account.",
-      }),
+      body: JSON.stringify({ message: "User created successfully" }),
     };
   } catch (err: any) {
+    console.error("Register error:", err);
     return {
       statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-      body: JSON.stringify({ error: err.message || "Registration failed." }),
+      body: JSON.stringify({ error: err.message || "Internal server error" }),
     };
   }
 };
