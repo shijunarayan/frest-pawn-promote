@@ -59,7 +59,17 @@ export class InfrastructureStack extends cdk.Stack {
       },
     });
 
-    // ✅ Lambda Function for Login
+    // Shared permissions for all Lambda functions
+    const cognitoPolicy = new iam.PolicyStatement({
+      actions: [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminSetUserPassword",
+        "cognito-idp:AdminUpdateUserAttributes",
+      ],
+      resources: [userPool.userPoolArn],
+    });
+
+    // Lambda Function: Login
     const loginLambda = new lambda.Function(this, "LoginFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "login.handler",
@@ -71,7 +81,9 @@ export class InfrastructureStack extends cdk.Stack {
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
     });
+    loginLambda.addToRolePolicy(cognitoPolicy);
 
+    // Lambda Function: Register
     const registerLambda = new lambda.Function(this, "RegisterFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "register.handler",
@@ -80,10 +92,12 @@ export class InfrastructureStack extends cdk.Stack {
       ),
       environment: {
         USER_POOL_ID: userPool.userPoolId,
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId, // ← You’ll wire this up in CDK below
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
     });
+    registerLambda.addToRolePolicy(cognitoPolicy);
 
+    // Lambda Function: Confirm
     const confirmLambda = new lambda.Function(this, "ConfirmFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "confirm.handler",
@@ -91,25 +105,12 @@ export class InfrastructureStack extends cdk.Stack {
         path.join(__dirname, "../../services/auth-service")
       ),
       environment: {
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        USER_POOL_ID: userPool.userPoolId,
       },
     });
+    confirmLambda.addToRolePolicy(cognitoPolicy);
 
-    // ✅ API Gateway
-    const api = new apigateway.RestApi(this, "FrestPawnAPI", {
-      restApiName: "Frest Pawn API",
-      description: "Warehouse SaaS API for authentication and more",
-    });
-
-    // ✅ /login endpoint
-    const login = api.root.addResource("login");
-    login.addMethod("POST", new apigateway.LambdaIntegration(loginLambda));
-    login.addCorsPreflight({
-      allowOrigins: apigateway.Cors.ALL_ORIGINS,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["POST"],
-    });
-
+    // Lambda Function: Forgot Password (initiate)
     const forgotPasswordLambda = new lambda.Function(
       this,
       "ForgotPasswordFunction",
@@ -124,7 +125,9 @@ export class InfrastructureStack extends cdk.Stack {
         },
       }
     );
+    forgotPasswordLambda.addToRolePolicy(cognitoPolicy);
 
+    // Lambda Function: Confirm Forgot Password
     const confirmForgotPasswordLambda = new lambda.Function(
       this,
       "ConfirmForgotPasswordFunction",
@@ -139,53 +142,36 @@ export class InfrastructureStack extends cdk.Stack {
         },
       }
     );
+    confirmForgotPasswordLambda.addToRolePolicy(cognitoPolicy);
 
-    // ✅ /register endpoint
-    const register = api.root.addResource("register");
-    register.addMethod(
-      "POST",
-      new apigateway.LambdaIntegration(registerLambda)
-    );
-    register.addCorsPreflight({
-      allowOrigins: apigateway.Cors.ALL_ORIGINS,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["POST"],
+    // API Gateway
+    const api = new apigateway.RestApi(this, "FrestPawnAPI", {
+      restApiName: "Frest Pawn API",
+      description: "Warehouse SaaS API for authentication and more",
     });
 
-    // ✅ /confirm endpoint
-    const confirm = api.root.addResource("confirm");
-    confirm.addMethod("POST", new apigateway.LambdaIntegration(confirmLambda));
-    confirm.addCorsPreflight({
-      allowOrigins: apigateway.Cors.ALL_ORIGINS,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["POST"],
-    });
+    const forgotResource = api.root.addResource("forgot");
 
-    // ✅ /forgot password endpoint
-    const forgot = api.root.addResource("forgot");
+    const routeMap = [
+      { path: "login", lambda: loginLambda },
+      { path: "register", lambda: registerLambda },
+      { path: "confirm", lambda: confirmLambda },
+      { path: "forgot/initiate", lambda: forgotPasswordLambda },
+      { path: "forgot/reset", lambda: confirmForgotPasswordLambda },
+    ];
 
-    // ✅ /forgot/initiate
-    const initiate = forgot.addResource("initiate");
-    initiate.addMethod(
-      "POST",
-      new apigateway.LambdaIntegration(forgotPasswordLambda)
-    );
-    initiate.addCorsPreflight({
-      allowOrigins: apigateway.Cors.ALL_ORIGINS,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["POST"],
-    });
+    for (const { path, lambda } of routeMap) {
+      const segments = path.split("/");
+      const resource = segments.reduce((parent, segment) => {
+        return parent.getResource(segment) ?? parent.addResource(segment);
+      }, api.root);
 
-    // ✅ /forgot/reset
-    const reset = forgot.addResource("reset");
-    reset.addMethod(
-      "POST",
-      new apigateway.LambdaIntegration(confirmForgotPasswordLambda)
-    );
-    reset.addCorsPreflight({
-      allowOrigins: apigateway.Cors.ALL_ORIGINS,
-      allowHeaders: ["Content-Type"],
-      allowMethods: ["POST"],
-    });
+      resource.addMethod("POST", new apigateway.LambdaIntegration(lambda));
+      resource.addCorsPreflight({
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: ["Content-Type"],
+      });
+    }
   }
 }
