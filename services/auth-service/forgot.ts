@@ -1,10 +1,10 @@
-// services/auth-service/forgot.ts
 import { APIGatewayProxyHandler } from "aws-lambda";
 import {
   CognitoIdentityProviderClient,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+import { successResponse, errorResponse } from "./response";
 
 const client = new CognitoIdentityProviderClient({});
 
@@ -12,41 +12,16 @@ export const initiateForgotPassword: APIGatewayProxyHandler = async (event) => {
   try {
     const { username } = JSON.parse(event.body || "{}");
 
-    if (!username) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Username is required" }),
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
-      };
-    }
-
     const command = new ForgotPasswordCommand({
-      ClientId: process.env.USER_POOL_CLIENT_ID,
+      ClientId: process.env.USER_POOL_CLIENT_ID!,
       Username: username,
     });
 
     await client.send(command);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Reset code sent" }),
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    };
-  } catch (err: any) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || "Something went wrong" }),
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    };
+    return successResponse({ message: "Reset code sent" });
+  } catch (err) {
+    console.error("ForgotPassword error:", err);
+    return errorResponse(err);
   }
 };
 
@@ -54,44 +29,17 @@ export const confirmForgotPassword: APIGatewayProxyHandler = async (event) => {
   try {
     const { username, code, newPassword } = JSON.parse(event.body || "{}");
 
-    if (!username || !code || !newPassword) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          error: "Username, code, and new password are required",
-        }),
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
-      };
-    }
-
     const command = new ConfirmForgotPasswordCommand({
-      ClientId: process.env.USER_POOL_CLIENT_ID,
+      ClientId: process.env.USER_POOL_CLIENT_ID!,
       Username: username,
       ConfirmationCode: code,
       Password: newPassword,
     });
 
     await client.send(command);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Password has been reset" }),
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    };
-  } catch (err: any) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || "Reset failed" }),
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    };
+    return successResponse({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("ConfirmForgotPassword error:", err);
+    return errorResponse(err);
   }
 };

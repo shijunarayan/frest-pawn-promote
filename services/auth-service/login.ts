@@ -1,8 +1,9 @@
+import { APIGatewayProxyHandler } from "aws-lambda";
 import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { APIGatewayProxyHandler } from "aws-lambda";
+import { successResponse, errorResponse } from "./response";
 
 const client = new CognitoIdentityProviderClient({});
 
@@ -10,45 +11,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
-    if (!username || !password) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Username and password are required." }),
-      };
-    }
-
     const command = new InitiateAuthCommand({
       AuthFlow: "USER_PASSWORD_AUTH",
       ClientId: process.env.USER_POOL_CLIENT_ID!,
-      AuthParameters: {
-        USERNAME: username,
-        PASSWORD: password,
-      },
+      AuthParameters: { USERNAME: username, PASSWORD: password },
     });
 
-    const response = await client.send(command);
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-      body: JSON.stringify({
-        message: "Login successful",
-        tokens: response.AuthenticationResult,
-      }),
-    };
-  } catch (err: any) {
-    return {
-      statusCode: 401,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-      body: JSON.stringify({
-        error: err.message || "Login failed.",
-      }),
-    };
+    const result = await client.send(command);
+    return successResponse(result.AuthenticationResult);
+  } catch (err) {
+    console.error("Login error:", err);
+    return errorResponse(err);
   }
 };
