@@ -3,6 +3,8 @@ export function successResponse(data: unknown, statusCode = 200) {
     statusCode,
     headers: {
       "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
     },
     body: JSON.stringify({ success: true, data }),
   };

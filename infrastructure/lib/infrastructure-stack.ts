@@ -55,7 +55,8 @@ export class InfrastructureStack extends cdk.Stack {
     const userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
       userPool,
       authFlows: {
-        userPassword: true, // ✅ Enables USER_PASSWORD_AUTH
+        userPassword: true,
+        adminUserPassword: true,
       },
     });
 
@@ -65,6 +66,8 @@ export class InfrastructureStack extends cdk.Stack {
         "cognito-idp:AdminCreateUser",
         "cognito-idp:AdminSetUserPassword",
         "cognito-idp:AdminUpdateUserAttributes",
+        "cognito-idp:AdminInitiateAuth",
+        "cognito-idp:AdminRespondToAuthChallenge",
       ],
       resources: [userPool.userPoolArn],
     });
@@ -106,6 +109,7 @@ export class InfrastructureStack extends cdk.Stack {
       ),
       environment: {
         USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
       },
     });
     confirmLambda.addToRolePolicy(cognitoPolicy);
@@ -121,6 +125,7 @@ export class InfrastructureStack extends cdk.Stack {
           path.join(__dirname, "../../services/auth-service")
         ),
         environment: {
+          USER_POOL_ID: userPool.userPoolId,
           USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         },
       }
@@ -138,6 +143,7 @@ export class InfrastructureStack extends cdk.Stack {
           path.join(__dirname, "../../services/auth-service")
         ),
         environment: {
+          USER_POOL_ID: userPool.userPoolId,
           USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         },
       }
