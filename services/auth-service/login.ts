@@ -3,11 +3,15 @@ import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { successResponse, errorResponse } from "./response";
+import { errorResponse } from "./response";
+import { getAllowOrigin } from "./utils/cors";
 
 const client = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
+  const allowOrigin = getAllowOrigin(event);
+  console.log("allowed origins: ", allowOrigin);
+
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
@@ -30,16 +34,19 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: 200,
       headers: {
         "Set-Cookie": [
-          `accessToken=${AccessToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600`,
-          `idToken=${IdToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600`,
-          `refreshToken=${RefreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`,
+          `accessToken=${AccessToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
+          `idToken=${IdToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
+          `refreshToken=${RefreshToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
         ].join(", "),
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": allowOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Headers": "Content-Type",
       },
       body: JSON.stringify({ success: true }),
     };
   } catch (err) {
     console.error("Login error:", err);
-    return errorResponse(err);
+    return errorResponse(err, allowOrigin);
   }
 };

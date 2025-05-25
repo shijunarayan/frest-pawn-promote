@@ -25,6 +25,12 @@ export class InfrastructureStack extends Stack {
       Tags.of(this).add(key, value);
     }
 
+    const lambdaEnvironment = {
+      REGION: props.env?.region || "ap-south-1",
+      CORS_ORIGINS: props.corsOrigins.join(","), // ✅ inject here
+      ENV_NAME: props.envName, // optional, but helpful
+    };
+
     // 🧑‍💻 Cognito User Pool
     const userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: `frest-pawn-userpool-${envName}`,
@@ -65,6 +71,7 @@ export class InfrastructureStack extends Stack {
           path.join(__dirname, "../../services/auth-service")
         ),
         environment: {
+          ...lambdaEnvironment,
           USER_POOL_ID: userPool.userPoolId,
           USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         },
@@ -111,6 +118,7 @@ export class InfrastructureStack extends Stack {
         allowOrigins: corsOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ["Content-Type"],
+        allowCredentials: true,
       });
     }
 

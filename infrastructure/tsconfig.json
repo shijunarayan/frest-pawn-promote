@@ -5,6 +5,7 @@
     "moduleResolution": "NodeNext",
     "lib": ["es2022", "dom"],
     "types": ["node"],
+    "baseUrl": ".",
     "declaration": true,
     "strict": true,
     "noImplicitAny": true,
@@ -21,7 +22,10 @@
     "strictPropertyInitialization": false,
     "typeRoots": [
       "./node_modules/@types"
-    ]
+    ],
+    "paths": {
+      "@/*": ["*"]
+    }
   },
   "exclude": [
     "node_modules",

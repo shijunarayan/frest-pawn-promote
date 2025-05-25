@@ -5,17 +5,20 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { errorResponse, successResponse } from "./response";
+import { getAllowOrigin } from "./utils/cors";
 
 const client = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
+  const allowOrigin = getAllowOrigin(event);
+
   try {
     const { username, tempPassword, newPassword } = JSON.parse(
       event.body || "{}"
     );
 
     if (!username || !tempPassword || !newPassword) {
-      return errorResponse("Missing required fields", 400);
+      return errorResponse("Missing required fields", allowOrigin, 400);
     }
 
     // Step 1: Initiate auth
@@ -35,6 +38,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     if (authResp.ChallengeName !== "NEW_PASSWORD_REQUIRED") {
       return errorResponse(
         "Unexpected challenge: " + authResp.ChallengeName,
+        allowOrigin,
         400
       );
     }
@@ -53,9 +57,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       })
     );
 
-    return successResponse({ message: "Password changed successfully" });
+    return successResponse(
+      { message: "Password changed successfully" },
+      allowOrigin
+    );
   } catch (err) {
     console.error("Confirm error:", err);
-    return errorResponse(err);
+    return errorResponse(err, allowOrigin);
   }
 };

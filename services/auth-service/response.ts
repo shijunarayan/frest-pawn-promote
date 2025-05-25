@@ -1,16 +1,17 @@
-export function successResponse(data: unknown, statusCode = 200) {
+export function successResponse(data: unknown, origin = "*", statusCode = 200) {
   return {
     statusCode,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
       "Access-Control-Allow-Headers": "*",
     },
     body: JSON.stringify({ success: true, data }),
   };
 }
 
-export function errorResponse(error: unknown, statusCode = 500) {
+export function errorResponse(error: unknown, origin = "*", statusCode = 500) {
   const message =
     error instanceof Error
       ? error.message
@@ -22,6 +23,9 @@ export function errorResponse(error: unknown, statusCode = 500) {
     statusCode,
     headers: {
       "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Headers": "*",
     },
     body: JSON.stringify({ success: false, error: message }),
   };

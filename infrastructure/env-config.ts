@@ -1,9 +1,3 @@
-export const envCorsOrigins: Record<string, string[]> = {
-  dev: ["http://localhost:3000", "https://main.dz7xcaktnrert.amplifyapp.com"],
-  stage: ["https://stage.yourdomain.com"],
-  prod: ["https://app.yourdomain.com"],
-};
-
 export interface EnvironmentSettings {
   envName: string;
   account: string;
@@ -53,3 +47,5 @@ export const environments: Record<string, EnvironmentSettings> = {
     },
   },
 };
+
+export const currentEnv = environments[process.env.ENV || "dev"];
