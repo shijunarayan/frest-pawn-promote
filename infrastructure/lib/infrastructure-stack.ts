@@ -91,6 +91,7 @@ export class InfrastructureStack extends Stack {
       "ConfirmForgotPasswordFunction",
       "forgot.confirmForgotPassword"
     );
+    const sessionLambda = createLambda("SessionFunction", "session.handler");
 
     // 🌐 API Gateway
     const api = new apigateway.RestApi(this, "FrestPawnAPI", {
@@ -100,20 +101,25 @@ export class InfrastructureStack extends Stack {
 
     // Routes
     const routeMap = [
-      { path: "login", lambda: loginLambda },
-      { path: "register", lambda: registerLambda },
-      { path: "confirm", lambda: confirmLambda },
-      { path: "forgot/initiate", lambda: forgotPasswordLambda },
-      { path: "forgot/reset", lambda: confirmForgotPasswordLambda },
+      { path: "login", method: "POST", lambda: loginLambda },
+      { path: "register", method: "POST", lambda: registerLambda },
+      { path: "confirm", method: "POST", lambda: confirmLambda },
+      { path: "forgot/initiate", method: "POST", lambda: forgotPasswordLambda },
+      {
+        path: "forgot/reset",
+        method: "POST",
+        lambda: confirmForgotPasswordLambda,
+      },
+      { path: "session", method: "GET", lambda: sessionLambda },
     ];
 
-    for (const { path: routePath, lambda } of routeMap) {
+    for (const { path: routePath, method, lambda } of routeMap) {
       const segments = routePath.split("/");
       const resource = segments.reduce((parent, segment) => {
         return parent.getResource(segment) ?? parent.addResource(segment);
-      }, api.root);
+      }, api.root!);
 
-      resource.addMethod("POST", new apigateway.LambdaIntegration(lambda));
+      resource.addMethod(method, new apigateway.LambdaIntegration(lambda));
       resource.addCorsPreflight({
         allowOrigins: corsOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,

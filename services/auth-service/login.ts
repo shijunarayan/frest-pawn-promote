@@ -4,14 +4,10 @@ import {
   InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { errorResponse } from "./response";
-import { getAllowOrigin } from "./utils/cors";
 
 const client = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  const allowOrigin = getAllowOrigin(event);
-  console.log("allowed origins: ", allowOrigin);
-
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
@@ -30,6 +26,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const { AccessToken, IdToken, RefreshToken } = tokens;
 
+    const allowOrigin = process.env.CORS_ORIGINS?.split(",")[0] || "*";
+
     return {
       statusCode: 200,
       headers: {
@@ -47,6 +45,6 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   } catch (err) {
     console.error("Login error:", err);
-    return errorResponse(err, allowOrigin);
+    return errorResponse(err);
   }
 };

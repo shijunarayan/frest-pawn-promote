@@ -5,13 +5,10 @@ import {
   ConfirmForgotPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { successResponse, errorResponse } from "./response";
-import { getAllowOrigin } from "./utils/cors";
 
 const client = new CognitoIdentityProviderClient({});
 
 export const initiateForgotPassword: APIGatewayProxyHandler = async (event) => {
-  const allowOrigin = getAllowOrigin(event);
-
   try {
     const { username } = JSON.parse(event.body || "{}");
 
@@ -21,16 +18,14 @@ export const initiateForgotPassword: APIGatewayProxyHandler = async (event) => {
     });
 
     await client.send(command);
-    return successResponse({ message: "Reset code sent" }, allowOrigin);
+    return successResponse({ message: "Reset code sent" });
   } catch (err) {
     console.error("ForgotPassword error:", err);
-    return errorResponse(err, allowOrigin);
+    return errorResponse(err);
   }
 };
 
 export const confirmForgotPassword: APIGatewayProxyHandler = async (event) => {
-  const allowOrigin = getAllowOrigin(event);
-
   try {
     const { username, code, newPassword } = JSON.parse(event.body || "{}");
 
@@ -42,12 +37,9 @@ export const confirmForgotPassword: APIGatewayProxyHandler = async (event) => {
     });
 
     await client.send(command);
-    return successResponse(
-      { message: "Password updated successfully" },
-      allowOrigin
-    );
+    return successResponse({ message: "Password updated successfully" });
   } catch (err) {
     console.error("ConfirmForgotPassword error:", err);
-    return errorResponse(err, allowOrigin);
+    return errorResponse(err);
   }
 };

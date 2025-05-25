@@ -5,13 +5,10 @@ import {
   AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { successResponse, errorResponse } from "./response";
-import { getAllowOrigin } from "./utils/cors";
 
 const client = new CognitoIdentityProviderClient({});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  const allowOrigin = getAllowOrigin(event);
-
   try {
     const {
       username,
@@ -47,13 +44,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       await client.send(passwordCommand);
     }
 
-    return successResponse(
-      { message: "User created successfully" },
-      allowOrigin,
-      201
-    );
+    return successResponse({ message: "User created successfully" }, 201);
   } catch (err) {
     console.error("Register error:", err);
-    return errorResponse(err, allowOrigin);
+    return errorResponse(err);
   }
 };

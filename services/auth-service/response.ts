@@ -1,17 +1,19 @@
-export function successResponse(data: unknown, origin = "*", statusCode = 200) {
+export function successResponse(data: unknown, statusCode = 200) {
+  const allowOrigin = process.env.CORS_ORIGINS?.split(",")[0] || "*";
+
   return {
     statusCode,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Origin": allowOrigin,
       "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Headers": "Content-Type",
     },
-    body: JSON.stringify({ success: true, data }),
+    body: JSON.stringify(data),
   };
 }
 
-export function errorResponse(error: unknown, origin = "*", statusCode = 500) {
+export function errorResponse(error: unknown, statusCode = 500) {
   const message =
     error instanceof Error
       ? error.message
@@ -19,13 +21,15 @@ export function errorResponse(error: unknown, origin = "*", statusCode = 500) {
       ? error
       : "Internal server error";
 
+  const allowOrigin = process.env.CORS_ORIGINS?.split(",")[0] || "*";
+
   return {
     statusCode,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Origin": allowOrigin,
       "Access-Control-Allow-Credentials": "true",
-      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Headers": "Content-Type",
     },
     body: JSON.stringify({ success: false, error: message }),
   };
