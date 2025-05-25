@@ -1,16 +1,31 @@
-#!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
 import { InfrastructureStack } from "../lib/infrastructure-stack";
+import { environments } from "../env-config";
 
 const app = new cdk.App();
-const stack = new InfrastructureStack(app, "InfrastructureStack", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION,
-  },
-});
+const envName = app.node.tryGetContext("env") || "dev";
 
-cdk.Tags.of(stack).add("Project", "FrestPawnPromote");
-cdk.Tags.of(stack).add("Env", "Dev");
-cdk.Tags.of(stack).add("Owner", "Shijunarayan");
-cdk.Tags.of(stack).add("CostCenter", "WarehouseSaaS");
+const selectedEnv = environments[envName];
+
+if (!selectedEnv) {
+  throw new Error(
+    `Invalid environment '${envName}'. Valid options: ${Object.keys(
+      environments
+    ).join(", ")}`
+  );
+}
+
+const customDomain = app.node.tryGetContext("domainName");
+
+const stackName = `FrestPawnInfra-${envName}`;
+
+new InfrastructureStack(app, stackName, {
+  env: {
+    account: selectedEnv.account,
+    region: selectedEnv.region,
+  },
+  envName: selectedEnv.envName,
+  corsOrigins: selectedEnv.cors,
+  tags: selectedEnv.tags,
+  ...(customDomain && { customDomain }),
+});

@@ -1,55 +1,40 @@
-import * as cdk from "aws-cdk-lib";
+import { Stack, StackProps, CfnOutput, RemovalPolicy, Tags } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
-import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
-
+import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as path from "path";
 
-export class InfrastructureStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+interface InfrastructureStackProps extends StackProps {
+  envName: string;
+  corsOrigins: string[];
+  tags: Record<string, string>;
+  customDomain?: string;
+}
+
+export class InfrastructureStack extends Stack {
+  constructor(scope: Construct, id: string, props: InfrastructureStackProps) {
     super(scope, id, props);
 
-    const customMessageLambda = new lambda.Function(
-      this,
-      "CustomMessageLambda",
-      {
-        runtime: lambda.Runtime.NODEJS_18_X,
-        code: lambda.Code.fromAsset("../services/auth-service/custom-message"),
-        handler: "index.handler",
-        timeout: cdk.Duration.seconds(10),
-      }
-    );
+    const { envName, corsOrigins, customDomain } = props;
 
-    customMessageLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["sns:Publish", "ses:SendEmail"],
-        resources: ["*"], // you can restrict this later
-      })
-    );
+    // 🧠 Apply tags dynamically
+    for (const [key, value] of Object.entries(props.tags)) {
+      Tags.of(this).add(key, value);
+    }
 
-    // ✅ Cognito User Pool
+    // 🧑‍💻 Cognito User Pool
     const userPool = new cognito.UserPool(this, "UserPool", {
-      userPoolName: "frest-pawn-userpool",
+      userPoolName: `frest-pawn-userpool-${envName}`,
       selfSignUpEnabled: true,
-      signInAliases: { username: true },
-      autoVerify: {
+      signInAliases: {
+        username: true,
         email: true,
-        phone: true,
       },
-      passwordPolicy: {
-        minLength: 8,
-        requireSymbols: false,
-        requireDigits: true,
-        requireLowercase: true,
-        requireUppercase: false,
-      },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      lambdaTriggers: {
-        customMessage: customMessageLambda,
-      },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoVerify: { email: true },
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
     const userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
@@ -60,7 +45,6 @@ export class InfrastructureStack extends cdk.Stack {
       },
     });
 
-    // Shared permissions for all Lambda functions
     const cognitoPolicy = new iam.PolicyStatement({
       actions: [
         "cognito-idp:AdminCreateUser",
@@ -72,92 +56,42 @@ export class InfrastructureStack extends cdk.Stack {
       resources: [userPool.userPoolArn],
     });
 
-    // Lambda Function: Login
-    const loginLambda = new lambda.Function(this, "LoginFunction", {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: "login.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../services/auth-service")
-      ),
-      environment: {
-        USER_POOL_ID: userPool.userPoolId,
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-    });
-    loginLambda.addToRolePolicy(cognitoPolicy);
+    // 🧬 Lambda Functions
+    const createLambda = (name: string, handler: string) => {
+      const fn = new lambda.Function(this, name, {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: handler,
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../services/auth-service")
+        ),
+        environment: {
+          USER_POOL_ID: userPool.userPoolId,
+          USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+      });
+      fn.addToRolePolicy(cognitoPolicy);
+      return fn;
+    };
 
-    // Lambda Function: Register
-    const registerLambda = new lambda.Function(this, "RegisterFunction", {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: "register.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../services/auth-service")
-      ),
-      environment: {
-        USER_POOL_ID: userPool.userPoolId,
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-    });
-    registerLambda.addToRolePolicy(cognitoPolicy);
-
-    // Lambda Function: Confirm
-    const confirmLambda = new lambda.Function(this, "ConfirmFunction", {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: "confirm.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../services/auth-service")
-      ),
-      environment: {
-        USER_POOL_ID: userPool.userPoolId,
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-    });
-    confirmLambda.addToRolePolicy(cognitoPolicy);
-
-    // Lambda Function: Forgot Password (initiate)
-    const forgotPasswordLambda = new lambda.Function(
-      this,
+    const loginLambda = createLambda("LoginFunction", "login.handler");
+    const registerLambda = createLambda("RegisterFunction", "register.handler");
+    const confirmLambda = createLambda("ConfirmFunction", "confirm.handler");
+    const forgotPasswordLambda = createLambda(
       "ForgotPasswordFunction",
-      {
-        runtime: lambda.Runtime.NODEJS_18_X,
-        handler: "forgot.initiateForgotPassword",
-        code: lambda.Code.fromAsset(
-          path.join(__dirname, "../../services/auth-service")
-        ),
-        environment: {
-          USER_POOL_ID: userPool.userPoolId,
-          USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-        },
-      }
+      "forgot.initiateForgotPassword"
     );
-    forgotPasswordLambda.addToRolePolicy(cognitoPolicy);
-
-    // Lambda Function: Confirm Forgot Password
-    const confirmForgotPasswordLambda = new lambda.Function(
-      this,
+    const confirmForgotPasswordLambda = createLambda(
       "ConfirmForgotPasswordFunction",
-      {
-        runtime: lambda.Runtime.NODEJS_18_X,
-        handler: "forgot.confirmForgotPassword",
-        code: lambda.Code.fromAsset(
-          path.join(__dirname, "../../services/auth-service")
-        ),
-        environment: {
-          USER_POOL_ID: userPool.userPoolId,
-          USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-        },
-      }
+      "forgot.confirmForgotPassword"
     );
-    confirmForgotPasswordLambda.addToRolePolicy(cognitoPolicy);
 
-    // API Gateway
+    // 🌐 API Gateway
     const api = new apigateway.RestApi(this, "FrestPawnAPI", {
       restApiName: "Frest Pawn API",
-      description: "Warehouse SaaS API for authentication and more",
+      description: `Warehouse SaaS API for ${envName}`,
     });
 
-    const forgotResource = api.root.addResource("forgot");
-
+    // Routes
     const routeMap = [
       { path: "login", lambda: loginLambda },
       { path: "register", lambda: registerLambda },
@@ -166,17 +100,49 @@ export class InfrastructureStack extends cdk.Stack {
       { path: "forgot/reset", lambda: confirmForgotPasswordLambda },
     ];
 
-    for (const { path, lambda } of routeMap) {
-      const segments = path.split("/");
+    for (const { path: routePath, lambda } of routeMap) {
+      const segments = routePath.split("/");
       const resource = segments.reduce((parent, segment) => {
         return parent.getResource(segment) ?? parent.addResource(segment);
       }, api.root);
 
       resource.addMethod("POST", new apigateway.LambdaIntegration(lambda));
       resource.addCorsPreflight({
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowOrigins: corsOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ["Content-Type"],
+      });
+    }
+
+    // 🔁 Output: API Gateway URL
+    new CfnOutput(this, `${envName}ApiUrl`, {
+      value: api.url,
+      description: `API Gateway URL for ${envName} environment`,
+      exportName: `FrestPawnAPIEndpoint-${envName}`,
+    });
+
+    // 🌐 Optional: Custom domain support
+    if (customDomain) {
+      const certArn =
+        "arn:aws:acm:your-region:your-account:certificate/your-cert-id"; // replace when ready
+      const domain = new apigateway.DomainName(this, "CustomDomain", {
+        domainName: customDomain,
+        certificate: acm.Certificate.fromCertificateArn(
+          this,
+          "DomainCert",
+          certArn
+        ),
+      });
+
+      new apigateway.BasePathMapping(this, "BasePathMapping", {
+        domainName: domain,
+        restApi: api,
+      });
+
+      new CfnOutput(this, `${envName}CustomDomain`, {
+        value: `https://${customDomain}`,
+        description: "Custom domain URL",
+        exportName: `FrestPawnCustomDomain-${envName}`,
       });
     }
   }

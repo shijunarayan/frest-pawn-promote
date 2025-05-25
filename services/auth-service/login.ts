@@ -18,7 +18,26 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     });
 
     const result = await client.send(command);
-    return successResponse(result.AuthenticationResult);
+    const tokens = result.AuthenticationResult;
+
+    if (!tokens) {
+      return errorResponse("Authentication failed: Missing token set");
+    }
+
+    const { AccessToken, IdToken, RefreshToken } = tokens;
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Set-Cookie": [
+          `accessToken=${AccessToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600`,
+          `idToken=${IdToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=3600`,
+          `refreshToken=${RefreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`,
+        ].join(", "),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ success: true }),
+    };
   } catch (err) {
     console.error("Login error:", err);
     return errorResponse(err);
