@@ -126,18 +126,18 @@ export class InfrastructureStack extends Stack {
       postUserRoles: createLambda(
         "PostUserRoles",
         "access-control",
-        "user-roles.post"
+        "user-roles-post"
       ),
       patchUserRoles: createLambda(
         "PatchUserRoles",
         "access-control",
-        "user-roles.patch"
+        "user-roles-patch"
       ),
-      postRoles: createLambda("PostRoles", "access-control", "roles.post"),
+      postRoles: createLambda("PostRoles", "access-control", "roles-post"),
       patchRoleCapabilities: createLambda(
         "PatchRoleCapabilities",
         "access-control",
-        "role-capabilities.patch"
+        "role-capabilities-patch"
       ),
     };
 
