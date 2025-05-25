@@ -1,0 +1,217 @@
+[
+  {
+    "id": "view_dashboard",
+    "module": "Dashboard",
+    "description": "View metrics and charts on the dashboard"
+  },
+  {
+    "id": "manage_clients",
+    "module": "Clients",
+    "description": "Add/edit/remove clients"
+  },
+  {
+    "id": "view_inventory",
+    "module": "Inventory",
+    "description": "View item stock levels"
+  },
+  {
+    "id": "update_inventory",
+    "module": "Inventory",
+    "description": "Add or adjust stock quantity"
+  },
+  {
+    "id": "transfer_inventory",
+    "module": "Inventory",
+    "description": "Move items between warehouses"
+  },
+  {
+    "id": "assign_bin_location",
+    "module": "Inventory",
+    "description": "Assign items to bin locations"
+  },
+  {
+    "id": "create_order",
+    "module": "Orders",
+    "description": "Create new orders"
+  },
+  {
+    "id": "approve_order",
+    "module": "Orders",
+    "description": "Approve or reject pending orders"
+  },
+  {
+    "id": "dispatch_order",
+    "module": "Orders",
+    "description": "Mark an order as shipped"
+  },
+  {
+    "id": "view_reports",
+    "module": "Reports",
+    "description": "Access standard and custom reports"
+  },
+  {
+    "id": "download_reports",
+    "module": "Reports",
+    "description": "Export reports as PDF/Excel"
+  },
+  {
+    "id": "view_zone_configuration",
+    "module": "Reports",
+    "description": "Access zone configuration report"
+  },
+  {
+    "id": "view_cumulative_volume_report",
+    "module": "Reports",
+    "description": "View cumulative volumetric report"
+  },
+  {
+    "id": "view_ledger_report",
+    "module": "Reports",
+    "description": "View ledger report"
+  },
+  {
+    "id": "view_ageing_report",
+    "module": "Reports",
+    "description": "View ageing report"
+  },
+  {
+    "id": "view_inventory_by_customer",
+    "module": "Reports",
+    "description": "Inventory report by product or customer"
+  },
+  {
+    "id": "view_transaction_history",
+    "module": "Reports",
+    "description": "Product transaction history"
+  },
+  {
+    "id": "view_warehouse_volume_report",
+    "module": "Reports",
+    "description": "Warehouse volumetric report"
+  },
+  {
+    "id": "manage_settings",
+    "module": "Settings",
+    "description": "Change system-wide configuration"
+  },
+  {
+    "id": "manage_roles",
+    "module": "Settings",
+    "description": "Create/edit roles and assign capabilities"
+  },
+  {
+    "id": "manage_users",
+    "module": "Settings",
+    "description": "Assign roles to users and invite/remove users"
+  },
+  {
+    "id": "view_shipments",
+    "module": "Shipments",
+    "description": "Track incoming/outgoing shipments"
+  },
+  {
+    "id": "update_shipment_status",
+    "module": "Shipments",
+    "description": "Update delivery status of shipments"
+  },
+  {
+    "id": "view_warehouses",
+    "module": "Warehouses",
+    "description": "View all warehouses"
+  },
+  {
+    "id": "add_edit_warehouse",
+    "module": "Warehouses",
+    "description": "Add or modify warehouse details"
+  },
+  {
+    "id": "view_billing",
+    "module": "Billing",
+    "description": "View invoices and billing history"
+  },
+  {
+    "id": "process_payment",
+    "module": "Billing",
+    "description": "Record payments received"
+  },
+  {
+    "id": "update_pricing_config",
+    "module": "Billing",
+    "description": "Change SKU rates, taxes, etc."
+  },
+  {
+    "id": "access_audit_logs",
+    "module": "Admin",
+    "description": "View activity logs"
+  },
+  {
+    "id": "impersonate_user",
+    "module": "Admin",
+    "description": "Act as another user temporarily"
+  },
+  {
+    "id": "configure_menu_access",
+    "module": "Admin",
+    "description": "Control menu visibility"
+  },
+  {
+    "id": "configure_mobile_behavior",
+    "module": "Admin",
+    "description": "Manage mobile app permissions"
+  },
+  {
+    "id": "track_forklift_usage",
+    "module": "Warehouse Ops",
+    "description": "Log forklift operations"
+  },
+  {
+    "id": "track_labour_allocation",
+    "module": "Warehouse Ops",
+    "description": "Record labor usage and shifts"
+  },
+  {
+    "id": "track_visitor_entry_exit",
+    "module": "Warehouse Ops",
+    "description": "Log visitor entries"
+  },
+  {
+    "id": "track_container_arrival_departure",
+    "module": "Warehouse Ops",
+    "description": "Track container movements"
+  },
+  {
+    "id": "process_SRF",
+    "module": "Warehouse Ops",
+    "description": "Approve/reject storage request form"
+  },
+  {
+    "id": "process_SOF",
+    "module": "Warehouse Ops",
+    "description": "Approve/reject storage outward form"
+  },
+  {
+    "id": "upload_work_order",
+    "module": "Documents",
+    "description": "Attach signed work order"
+  },
+  {
+    "id": "attach_proof_of_ownership",
+    "module": "Documents",
+    "description": "Attach proof of product ownership"
+  },
+  {
+    "id": "manage_packing_segregation_tasks",
+    "module": "Warehouse Ops",
+    "description": "Oversee packing and sorting"
+  },
+  {
+    "id": "log_vehicle_condition_report",
+    "module": "Vehicle Handling",
+    "description": "Log inbound/outbound vehicle condition"
+  },
+  {
+    "id": "upload_vehicle_documents",
+    "module": "Vehicle Handling",
+    "description": "Upload vehicle registration and export docs"
+  }
+]

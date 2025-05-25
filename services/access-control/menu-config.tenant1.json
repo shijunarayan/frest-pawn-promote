@@ -1,0 +1,95 @@
+{
+  "system_items": [
+    {
+      "key": "dashboard",
+      "label": "Dashboard",
+      "icon": "LayoutDashboard",
+      "path": "/admin/dashboard",
+      "roles": ["*"],
+      "mobile": true,
+      "mobileOrder": 1
+    }
+  ],
+  "configurable_items": [
+    {
+      "key": "clients",
+      "enabled": true,
+      "label": "Clients",
+      "icon": "Users",
+      "path": "/admin/clients",
+      "roles": ["Admin"],
+      "mobile": false,
+      "mobileOrder": 2
+    },
+    {
+      "key": "inventory",
+      "enabled": true,
+      "label": "Inventory",
+      "icon": "Boxes",
+      "path": "/admin/inventory",
+      "roles": ["WarehouseManager", "Operator"],
+      "mobile": true,
+      "mobileOrder": 4
+    },
+    {
+      "key": "orders",
+      "enabled": true,
+      "label": "Orders",
+      "icon": "Package",
+      "path": "/admin/orders",
+      "roles": ["WarehouseManager"],
+      "mobile": true,
+      "mobileOrder": 4
+    },
+    {
+      "key": "reports",
+      "enabled": true,
+      "label": "Reports",
+      "icon": "BarChart3",
+      "path": "/admin/reports",
+      "roles": ["Admin", "Auditor"],
+      "mobile": true,
+      "mobileOrder": 3
+    },
+    {
+      "key": "settings",
+      "enabled": true,
+      "label": "Settings",
+      "icon": "Settings",
+      "path": "/admin/settings",
+      "roles": ["Admin"],
+      "mobile": false,
+      "mobileOrder": 9
+    },
+    {
+      "key": "shipments",
+      "enabled": true,
+      "label": "Shipments",
+      "icon": "Truck",
+      "path": "/admin/shipments",
+      "roles": ["WarehouseManager"],
+      "mobile": false,
+      "mobileOrder": 6
+    },
+    {
+      "key": "warehouses",
+      "enabled": true,
+      "label": "Warehouses",
+      "icon": "Warehouse",
+      "path": "/admin/warehouses",
+      "roles": ["Admin"],
+      "mobile": false,
+      "mobileOrder": 7
+    },
+    {
+      "key": "billing",
+      "enabled": true,
+      "label": "Billing",
+      "icon": "CreditCard",
+      "path": "/admin/billing",
+      "roles": ["Admin", "Accountant"],
+      "mobile": false,
+      "mobileOrder": 8
+    }
+  ]
+}

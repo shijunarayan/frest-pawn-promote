@@ -1,0 +1,26 @@
+[
+  {
+    "id": "Admin",
+    "label": "Administrator"
+  },
+  {
+    "id": "WarehouseManager",
+    "label": "Warehouse Manager"
+  },
+  {
+    "id": "Accountant",
+    "label": "Accountant"
+  },
+  {
+    "id": "Operator",
+    "label": "Forklift Operator"
+  },
+  {
+    "id": "Auditor",
+    "label": "Auditor"
+  },
+  {
+    "id": "Security",
+    "label": "Security Officer"
+  }
+]
