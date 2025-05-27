@@ -1,49 +1,25 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import { getTenantContext } from "../utils/tokenUtils";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import { withCapability } from "@/services/utils/withCapability";
+import { Capabilities } from "@/services/access-control/constants/capabilities";
+import {
+  successResponse,
+  errorResponse,
+} from "@/services/auth-service/response";
+import { putUserRoles } from "@/services/adapters/rolesAdapter";
 
-const client = new DynamoDBClient({});
+export const handler = withTenantContext(
+  withCapability(Capabilities.ASSIGN_ROLES, async (event, { tenantId }) => {
+    const body = JSON.parse(event.body || "{}");
+    const { targetUserId, roles } = body;
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-  try {
-    const context = await getTenantContext(event);
-    const roles = JSON.parse(event.body || "{}").roles;
-
-    if (!Array.isArray(roles)) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          message: "Invalid request: roles must be an array",
-        }),
-      };
+    if (!targetUserId || !Array.isArray(roles)) {
+      return errorResponse(
+        "Missing or invalid input. Expecting targetUserId and roles[]",
+        400
+      );
     }
 
-    const putCommand = new PutItemCommand({
-      TableName: process.env.USER_ROLES_TABLE,
-      Item: marshall({
-        tenantId: context.tenantId,
-        userId: context.userId,
-        username: context.username,
-        roles,
-      }),
-    });
-
-    await client.send(putCommand);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: "User roles saved",
-        username: context.username,
-        roles,
-      }),
-    };
-  } catch (err) {
-    console.error("Error saving user roles", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal server error" }),
-    };
-  }
-};
+    await putUserRoles(tenantId, targetUserId, roles);
+    return successResponse({ message: "Roles assigned successfully." });
+  })
+);

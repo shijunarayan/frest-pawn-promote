@@ -1,72 +1,35 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { getTenantContext } from "../utils/tokenUtils";
-import { getUserRolesFromDb } from "./dynamoAdapter";
-import { getRoleCapabilitiesBatch } from "./dynamoAdapter";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import {
+  successResponse,
+  errorResponse,
+} from "@/services/auth-service/response";
+import { getUserRolesFromDb } from "@/services/adapters/rolesAdapter";
+import { getRoleCapabilitiesBatch } from "@/services/adapters/capabilitiesAdapter";
+import { getMenuConfig } from "@/services/adapters/menuAdapter";
 
-const client = new DynamoDBClient({});
-const tableName = process.env.MENU_CONFIG_TABLE!;
-
-export const handler: APIGatewayProxyHandler = async (event) => {
-  try {
-    const { tenantId, userId } = await getTenantContext(event);
-
-    // Step 1: Get user roles
+export const handler = withTenantContext(
+  async (_event, { tenantId, userId }) => {
     const roles = await getUserRolesFromDb(tenantId, userId);
-    if (!roles.length) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ message: "No roles assigned" }),
-      };
-    }
+    if (!roles.length) return successResponse([]);
 
-    // Step 2: Get capabilities for those roles
     const capabilities = await getRoleCapabilitiesBatch(tenantId, roles);
+    const menuConfig = await getMenuConfig(tenantId);
 
-    // Step 3: Load tenant menu config
-    const result = await client.send(
-      new GetItemCommand({
-        TableName: tableName,
-        Key: {
-          tenantId: { S: tenantId },
-        },
-      })
-    );
-
-    const menuConfig = result.Item ? unmarshall(result.Item) : null;
-
-    if (!menuConfig) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ message: "No menu config found for tenant" }),
-      };
+    if (!menuConfig || !Array.isArray(menuConfig.items)) {
+      return errorResponse("Menu config is missing or invalid", 500);
     }
 
-    // Step 4: Filter items by matching capability or wildcard
-    const filterByAccess = (items: any[]) =>
-      items.filter((item) => {
-        return (
-          item.roles?.includes("*") ||
-          item.roles?.some((r: string) => roles.includes(r)) ||
-          item.capabilities?.some((c: string) => capabilities.includes(c))
-        );
-      });
+    // Filter logic
+    const filteredItems = menuConfig.items.filter((item: any) => {
+      const roleMatch =
+        item.roles?.includes("*") ||
+        item.roles?.some((r: string) => roles.includes(r));
+      const capabilityMatch = item.capabilities?.some((c: string) =>
+        capabilities.includes(c)
+      );
+      return roleMatch || capabilityMatch;
+    });
 
-    const filtered = {
-      system_items: filterByAccess(menuConfig.system_items || []),
-      configurable_items: filterByAccess(menuConfig.configurable_items || []),
-    };
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify(filtered),
-    };
-  } catch (err) {
-    console.error("Error loading menu config", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
+    return successResponse(filteredItems);
   }
-};
+);

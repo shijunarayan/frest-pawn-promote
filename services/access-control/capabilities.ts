@@ -1,45 +1,16 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { getTenantContext } from "../utils/tokenUtils";
-import { hasCapability } from "../utils/accessControl";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import { withCapability } from "@/services/utils/withCapability";
+import { Capabilities } from "@/services/access-control/constants/capabilities";
+import { successResponse } from "@/services/auth-service/response";
+import { Capabilities as CapabilityList } from "@/services/access-control/constants/capabilities";
 
-const client = new DynamoDBClient({});
-const tableName = process.env.CAPABILITIES_TABLE!;
+export const handler = withTenantContext(
+  withCapability(Capabilities.VIEW_CAPABILITIES, async () => {
+    const capabilities = Object.entries(CapabilityList).map(([key, value]) => ({
+      id: value,
+      label: key.replace(/_/g, " ").toLowerCase(), // Optional formatting
+    }));
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-  try {
-    const { tenantId } = await getTenantContext(event);
-
-    const allowed = await hasCapability(event, "view_capabilities");
-    if (!allowed) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ message: "Forbidden" }),
-      };
-    }
-
-    const result = await client.send(
-      new QueryCommand({
-        TableName: tableName,
-        KeyConditionExpression: "tenantId = :tenantId",
-        ExpressionAttributeValues: {
-          ":tenantId": { S: tenantId },
-        },
-      })
-    );
-
-    const capabilities = result.Items?.map((item) => unmarshall(item)) || [];
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify(capabilities),
-    };
-  } catch (err) {
-    console.error("Error fetching capabilities:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
-  }
-};
+    return successResponse({ capabilities });
+  })
+);

@@ -1,16 +1,15 @@
-export type TenantContext = {
-  userId: string;
-  username: string;
-  tenantId: string;
-};
+import { APIGatewayProxyEvent } from "aws-lambda";
+import { TenantContext } from "../../types/context";
 
-export async function getTenantContext(event: any): Promise<TenantContext> {
+export async function getTenantContext(
+  event: APIGatewayProxyEvent
+): Promise<TenantContext | null> {
   const { createRemoteJWKSet, jwtVerify } = await import("jose");
 
   const cookieHeader = event.headers.Cookie || event.headers.cookie || "";
   const accessToken = cookieHeader
     .split(";")
-    .find((c: string) => c.trim().startsWith("accessToken="))
+    .find((c) => c.trim().startsWith("accessToken="))
     ?.split("=")[1];
 
   if (!accessToken) throw new Error("Missing access token");
@@ -27,12 +26,11 @@ export async function getTenantContext(event: any): Promise<TenantContext> {
     issuer: `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`,
   });
 
-  const userId = payload["sub"];
-  const username =
-    (payload["cognito:username"] as string) || (payload["username"] as string);
-  const tenantId = payload["tenantId"] as string;
+  const userId = payload.sub as string;
+  const username = payload["username"] as string;
+  const tenantId = payload["custom:tenantId"] as string;
 
-  if (!userId || !tenantId) throw new Error("Invalid token payload");
+  if (!userId || !username || !tenantId) return null;
 
   return { userId, username, tenantId };
 }

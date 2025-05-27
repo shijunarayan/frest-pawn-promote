@@ -1,45 +1,12 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { getTenantContext } from "../utils/tokenUtils";
-import { hasCapability } from "../utils/accessControl";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import { withCapability } from "@/services/utils/withCapability";
+import { Capabilities } from "@/services/access-control/constants/capabilities";
+import { successResponse } from "@/services/auth-service/response";
+import { getAllRoles } from "@/services/adapters/rolesAdapter";
 
-const client = new DynamoDBClient({});
-const tableName = process.env.ROLES_TABLE!;
-
-export const handler: APIGatewayProxyHandler = async (event) => {
-  try {
-    const { tenantId } = await getTenantContext(event);
-
-    const allowed = await hasCapability(event, "view_roles");
-    if (!allowed) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ message: "Forbidden" }),
-      };
-    }
-
-    const result = await client.send(
-      new QueryCommand({
-        TableName: tableName,
-        KeyConditionExpression: "tenantId = :tenantId",
-        ExpressionAttributeValues: {
-          ":tenantId": { S: tenantId },
-        },
-      })
-    );
-
-    const roles = result.Items?.map((item) => unmarshall(item)) || [];
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify(roles),
-    };
-  } catch (err) {
-    console.error("Error fetching roles:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
-  }
-};
+export const handler = withTenantContext(
+  withCapability(Capabilities.VIEW_ROLES, async (event, { tenantId }) => {
+    const roles = await getAllRoles(tenantId);
+    return successResponse({ roles });
+  })
+);

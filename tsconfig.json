@@ -35,6 +35,9 @@
   ],
   "include": [
     "lib/**/*",
-    "../services/**/*"
-  ]
+    "services/**/*",
+    "types/**/*",
+    "web/**/*",
+    "scripts/**/*"
+, "types"  ]
 }

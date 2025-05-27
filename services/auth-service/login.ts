@@ -14,18 +14,20 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const command = new InitiateAuthCommand({
       AuthFlow: "USER_PASSWORD_AUTH",
       ClientId: process.env.USER_POOL_CLIENT_ID!,
-      AuthParameters: { USERNAME: username, PASSWORD: password },
+      AuthParameters: {
+        USERNAME: username,
+        PASSWORD: password,
+      },
     });
 
     const result = await client.send(command);
     const tokens = result.AuthenticationResult;
 
     if (!tokens) {
-      return errorResponse("Authentication failed: Missing token set");
+      return errorResponse("Authentication failed: Missing token set", 401);
     }
 
     const { AccessToken, IdToken, RefreshToken } = tokens;
-
     const allowOrigin = process.env.CORS_ORIGINS?.split(",")[0] || "*";
 
     return {
@@ -35,7 +37,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           `accessToken=${AccessToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
           `idToken=${IdToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
           `refreshToken=${RefreshToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
-        ].join(", "),
+        ].join(","),
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": allowOrigin,
         "Access-Control-Allow-Credentials": "true",
@@ -43,8 +45,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       },
       body: JSON.stringify({ success: true }),
     };
-  } catch (err) {
+  } catch (err: any) {
+    if (
+      err.name === "NotAuthorizedException" || // wrong password
+      err.name === "UserNotFoundException" // user doesn't exist
+    ) {
+      return errorResponse("Invalid username or password", 401);
+    }
+
     console.error("Login error:", err);
-    return errorResponse(err);
+    return errorResponse("Internal server error", 500);
   }
 };

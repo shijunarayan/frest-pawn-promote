@@ -1,47 +1,23 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { GetCommand } from "@aws-sdk/lib-dynamodb";
-import { client } from "./dynamoAdapter";
-import { getTenantContext } from "../utils/tokenUtils";
-import { hasCapability } from "../utils/accessControl";
-import { Capabilities } from "./constants/capabilities";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import { withCapability } from "@/services/utils/withCapability";
+import { Capabilities } from "@/services/access-control/constants/capabilities";
+import {
+  successResponse,
+  errorResponse,
+} from "@/services/auth-service/response";
+import { getMenuConfig } from "@/services/adapters/menuAdapter";
 
-const tableName = process.env.MENU_CONFIG_TABLE!;
+export const handler = withTenantContext(
+  withCapability(
+    Capabilities.CONFIGURE_MENU_ACCESS,
+    async (_event, { tenantId }) => {
+      const config = await getMenuConfig(tenantId);
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-  try {
-    const { tenantId } = await getTenantContext(event);
+      if (!config) {
+        return errorResponse("No menu config found for tenant", 404);
+      }
 
-    const allowed = await hasCapability(event, Capabilities.MANAGE_MENU);
-    if (!allowed) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ message: "Forbidden" }),
-      };
+      return successResponse(config);
     }
-
-    const result = await client.send(
-      new GetCommand({
-        TableName: tableName,
-        Key: { tenantId },
-      })
-    );
-
-    if (!result.Item) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ message: "Menu configuration not found" }),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify(result.Item),
-    };
-  } catch (err) {
-    console.error("Error fetching menu config", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
-  }
-};
+  )
+);

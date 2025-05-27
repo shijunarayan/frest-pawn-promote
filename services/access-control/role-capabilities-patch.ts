@@ -1,55 +1,37 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import { getTenantContext } from "../utils/tokenUtils";
-import { hasCapability } from "../utils/accessControl";
-import { Capabilities } from "./constants/capabilities";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import { withCapability } from "@/services/utils/withCapability";
+import { Capabilities } from "@/services/access-control/constants/capabilities";
+import {
+  successResponse,
+  errorResponse,
+} from "@/services/auth-service/response";
+import { client } from "@/services/utils/dynamodb";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
 
-const client = new DynamoDBClient({});
-const tableName = process.env.ROLES_TABLE!;
+export const handler = withTenantContext(
+  withCapability(
+    Capabilities.MANAGE_ROLE_CAPABILITIES,
+    async (event, { tenantId }) => {
+      const body = JSON.parse(event.body || "{}");
+      const { role, capabilities } = body;
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-  const roleId = event.pathParameters?.roleId;
-  const { capabilities } = JSON.parse(event.body || "{}");
+      if (!role || !Array.isArray(capabilities)) {
+        return errorResponse(
+          "Missing or invalid 'role' or 'capabilities[]'",
+          400
+        );
+      }
 
-  if (!roleId || !Array.isArray(capabilities)) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ message: "Missing roleId or capabilities" }),
-    };
-  }
+      await client.send(
+        new PutCommand({
+          TableName: process.env.ROLE_CAPABILITIES_TABLE!,
+          Item: { tenantId, role, capabilities },
+        })
+      );
 
-  try {
-    const { tenantId } = await getTenantContext(event);
-
-    const allowed = await hasCapability(event, Capabilities.MANAGE_ROLES);
-    if (!allowed) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ message: "Forbidden" }),
-      };
+      return successResponse({
+        message: "Role capabilities updated successfully.",
+      });
     }
-
-    await client.send(
-      new UpdateItemCommand({
-        TableName: tableName,
-        Key: marshall({ tenantId, roleId }),
-        UpdateExpression: "SET capabilities = :capabilities",
-        ExpressionAttributeValues: marshall({
-          ":capabilities": capabilities,
-        }),
-      })
-    );
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Capabilities updated", roleId }),
-    };
-  } catch (err) {
-    console.error("Error updating role capabilities", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
-  }
-};
+  )
+);

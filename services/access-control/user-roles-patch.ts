@@ -1,53 +1,25 @@
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import { getTenantContext } from "../utils/tokenUtils";
+import { withTenantContext } from "@/services/utils/withTenantContext";
+import { withCapability } from "@/services/utils/withCapability";
+import { Capabilities } from "@/services/access-control/constants/capabilities";
+import {
+  successResponse,
+  errorResponse,
+} from "@/services/auth-service/response";
+import { putUserRoles } from "@/services/adapters/rolesAdapter";
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-  const { roles } = JSON.parse(event.body || "{}");
+export const handler = withTenantContext(
+  withCapability(Capabilities.ASSIGN_ROLES, async (event, { tenantId }) => {
+    const body = JSON.parse(event.body || "{}");
+    const { targetUserId, roles } = body;
 
-  if (!Array.isArray(roles)) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        message: "Invalid payload: roles must be an array",
-      }),
-    };
-  }
+    if (!targetUserId || !Array.isArray(roles)) {
+      return errorResponse(
+        "Missing or invalid input. Expecting targetUserId and roles[]",
+        400
+      );
+    }
 
-  try {
-    const { tenantId, userId, username } = await getTenantContext(event);
-
-    const client = new DynamoDBClient({});
-    const tableName = process.env.USER_ROLES_TABLE!;
-
-    const item = marshall({
-      tenantId,
-      userId,
-      username,
-      roles,
-    });
-
-    await client.send(
-      new PutItemCommand({
-        TableName: tableName,
-        Item: item,
-      })
-    );
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: "Roles updated",
-        userId,
-        roles,
-      }),
-    };
-  } catch (err) {
-    console.error("Error updating user roles:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Internal Server Error" }),
-    };
-  }
-};
+    await putUserRoles(tenantId, targetUserId, roles);
+    return successResponse({ message: "Roles updated successfully." });
+  })
+);
