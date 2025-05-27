@@ -1,24 +1,53 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { getUserRoles, writeUserRoles } from "./accessAdapter";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { getTenantContext } from "../utils/tokenUtils";
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  const username = event.pathParameters?.username;
   const { roles } = JSON.parse(event.body || "{}");
 
-  if (!username || !Array.isArray(roles)) {
+  if (!Array.isArray(roles)) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ message: "Invalid payload" }),
+      body: JSON.stringify({
+        message: "Invalid payload: roles must be an array",
+      }),
     };
   }
 
-  const userRoles = await getUserRoles();
-  userRoles[username] = roles;
+  try {
+    const { tenantId, userId, username } = await getTenantContext(event);
 
-  await writeUserRoles(userRoles);
+    const client = new DynamoDBClient({});
+    const tableName = process.env.USER_ROLES_TABLE!;
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: "Roles patched", username, roles }),
-  };
+    const item = marshall({
+      tenantId,
+      userId,
+      username,
+      roles,
+    });
+
+    await client.send(
+      new PutItemCommand({
+        TableName: tableName,
+        Item: item,
+      })
+    );
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        message: "Roles updated",
+        userId,
+        roles,
+      }),
+    };
+  } catch (err) {
+    console.error("Error updating user roles:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Internal Server Error" }),
+    };
+  }
 };

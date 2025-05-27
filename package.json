@@ -5,6 +5,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.812.0",
+    "@aws-sdk/lib-dynamodb": "^3.817.0",
     "jose": "^6.0.11"
   }
 }

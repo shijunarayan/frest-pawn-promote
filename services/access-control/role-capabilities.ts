@@ -1,17 +1,27 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { getTenantContext } from "../utils/tokenUtils";
 import { hasCapability } from "../utils/accessControl";
+import { Capabilities } from "./constants/capabilities";
 
 const client = new DynamoDBClient({});
-const tableName = process.env.CAPABILITIES_TABLE!;
+const tableName = process.env.ROLE_CAPABILITIES_TABLE!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
+  const roleId = event.pathParameters?.roleId;
+
+  if (!roleId) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "Missing roleId in path" }),
+    };
+  }
+
   try {
     const { tenantId } = await getTenantContext(event);
 
-    const allowed = await hasCapability(event, "view_capabilities");
+    const allowed = await hasCapability(event, Capabilities.VIEW_CAPABILITIES);
     if (!allowed) {
       return {
         statusCode: 403,
@@ -20,23 +30,26 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     const result = await client.send(
-      new QueryCommand({
+      new GetItemCommand({
         TableName: tableName,
-        KeyConditionExpression: "tenantId = :tenantId",
-        ExpressionAttributeValues: {
-          ":tenantId": { S: tenantId },
+        Key: {
+          tenantId: { S: tenantId },
+          roleId: { S: roleId },
         },
       })
     );
 
-    const capabilities = result.Items?.map((item) => unmarshall(item)) || [];
+    const item = result.Item ? unmarshall(result.Item) : null;
 
     return {
       statusCode: 200,
-      body: JSON.stringify(capabilities),
+      body: JSON.stringify({
+        roleId,
+        capabilities: item?.capabilities || [],
+      }),
     };
   } catch (err) {
-    console.error("Error fetching capabilities:", err);
+    console.error("Error fetching role capabilities:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Internal Server Error" }),

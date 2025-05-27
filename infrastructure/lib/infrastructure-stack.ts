@@ -6,6 +6,8 @@ import * as path from "path";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Stack, StackProps, CfnOutput, RemovalPolicy, Tags } from "aws-cdk-lib";
+import * as cdk from "aws-cdk-lib";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 
 interface InfrastructureStackProps extends StackProps {
   envName: string;
@@ -25,11 +27,70 @@ export class InfrastructureStack extends Stack {
       Tags.of(this).add(key, value);
     }
 
+    const createTable = (
+      name: string,
+      partitionKey: string,
+      sortKey?: string
+    ) => {
+      return new dynamodb.Table(this, name, {
+        tableName: name,
+        partitionKey: {
+          name: partitionKey,
+          type: dynamodb.AttributeType.STRING,
+        },
+        sortKey: sortKey
+          ? { name: sortKey, type: dynamodb.AttributeType.STRING }
+          : undefined,
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        removalPolicy: cdk.RemovalPolicy.DESTROY, // change to RETAIN in prod
+      });
+    };
+
+    // 🎯 Tables
+    const userRolesTable = createTable("UserRolesTable", "tenantId", "userId");
+    const rolesTable = createTable("RolesTable", "tenantId", "roleId");
+    const roleCapabilitiesTable = createTable(
+      "RoleCapabilitiesTable",
+      "tenantId",
+      "roleId"
+    );
+    const capabilitiesTable = createTable("CapabilitiesTable", "tenantId");
+    const menuConfigTable = createTable("MenuConfigTable", "tenantId");
+
     const lambdaEnvironment = {
       REGION: props.env?.region || "ap-south-1",
       CORS_ORIGINS: props.corsOrigins.join(","), // ✅ inject here
       ENV_NAME: props.envName, // optional, but helpful
+      USER_ROLES_TABLE: userRolesTable.tableName,
+      ROLES_TABLE: rolesTable.tableName,
+      ROLE_CAPABILITIES_TABLE: roleCapabilitiesTable.tableName,
+      CAPABILITIES_TABLE: capabilitiesTable.tableName,
+      MENU_CONFIG_TABLE: menuConfigTable.tableName,
     };
+
+    // 📌 Give all Lambdas full access to their respective tables (refactorable)
+    const allTables = [
+      userRolesTable,
+      rolesTable,
+      roleCapabilitiesTable,
+      capabilitiesTable,
+      menuConfigTable,
+    ];
+
+    const accessLambdas: lambda.Function[] = []; // add references to your access-control lambdas here
+
+    allTables.forEach((table) => {
+      accessLambdas.forEach((fn) => {
+        table.grantReadWriteData(fn);
+      });
+    });
+
+    // 📦 Export env vars for use elsewhere
+    for (const [key, value] of Object.entries(lambdaEnvironment)) {
+      new cdk.CfnOutput(this, key, {
+        value,
+      });
+    }
 
     // 🧑‍💻 Cognito User Pool
     const userPool = new cognito.UserPool(this, "UserPool", {
@@ -38,6 +99,9 @@ export class InfrastructureStack extends Stack {
       signInAliases: {
         username: true,
         email: true,
+      },
+      customAttributes: {
+        tenantId: new cognito.StringAttribute({ mutable: false }),
       },
       autoVerify: { email: true },
       removalPolicy: RemovalPolicy.DESTROY,
@@ -256,6 +320,32 @@ export class InfrastructureStack extends Stack {
       value: api.url,
       description: "API Gateway URL",
       exportName: `FrestPawnAPIEndpoint-${envName}`,
+    });
+
+    // === Output Table Names ===
+    new CfnOutput(this, `${envName}CapabilitiesTable`, {
+      value: capabilitiesTable.tableName,
+      exportName: `CapabilitiesTable-${envName}`,
+    });
+
+    new CfnOutput(this, `${envName}RolesTable`, {
+      value: rolesTable.tableName,
+      exportName: `RolesTable-${envName}`,
+    });
+
+    new CfnOutput(this, `${envName}UserRolesTable`, {
+      value: userRolesTable.tableName,
+      exportName: `UserRolesTable-${envName}`,
+    });
+
+    new CfnOutput(this, `${envName}RoleCapabilitiesTable`, {
+      value: roleCapabilitiesTable.tableName,
+      exportName: `RoleCapabilitiesTable-${envName}`,
+    });
+
+    new CfnOutput(this, `${envName}MenuConfigTable`, {
+      value: menuConfigTable.tableName,
+      exportName: `MenuConfigTable-${envName}`,
     });
   }
 }

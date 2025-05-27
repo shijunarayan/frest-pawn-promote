@@ -1,21 +1,18 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { getUserRoles } from "../access-control/accessAdapter";
+
+const REGION = process.env.AWS_REGION!;
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  const { jwtVerify, createRemoteJWKSet } = await import("jose");
-  type JWTPayload = {
-    [key: string]: unknown;
-  };
-
-  const REGION = process.env.AWS_REGION!;
-  const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
-  const JWKS = createRemoteJWKSet(
-    new URL(
-      `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}/.well-known/jwks.json`
-    )
-  );
-
   try {
+    const { createRemoteJWKSet, jwtVerify } = await import("jose");
+
+    const JWKS = createRemoteJWKSet(
+      new URL(
+        `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}/.well-known/jwks.json`
+      )
+    );
+
     const cookieHeader = event.headers.Cookie || event.headers.cookie || "";
     const accessToken = cookieHeader
       .split(";")
@@ -25,36 +22,37 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     if (!accessToken) {
       return {
         statusCode: 401,
-        body: JSON.stringify({ message: "Unauthorized: No access token" }),
+        body: JSON.stringify({ message: "Access token missing" }),
       };
     }
 
-    const verifyResult = await jwtVerify(accessToken, JWKS, {
+    const { payload } = await jwtVerify(accessToken, JWKS, {
       issuer: `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`,
     });
 
-    const payload = verifyResult.payload as JWTPayload;
-    const username = payload["cognito:username"] || payload["username"];
+    const userId = payload.sub as string;
+    const username = (payload["cognito:username"] ||
+      payload.username) as string;
+    const tenantId = payload["custom:tenantId"] as string;
 
-    if (typeof username !== "string") {
+    if (!userId || !tenantId) {
       return {
-        statusCode: 401,
-        body: JSON.stringify({ message: "Unauthorized: Invalid token" }),
+        statusCode: 403,
+        body: JSON.stringify({
+          message: "Invalid token: missing userId or tenantId",
+        }),
       };
     }
 
-    const userRolesMap = await getUserRoles();
-    const roles = userRolesMap[username] || [];
-
     return {
       statusCode: 200,
-      body: JSON.stringify({ username, roles }),
+      body: JSON.stringify({ userId, username, tenantId }),
     };
-  } catch (err) {
-    console.error("JWT verification failed:", err);
+  } catch (err: any) {
+    console.error("Token verification failed:", err);
     return {
       statusCode: 401,
-      body: JSON.stringify({ message: "Unauthorized" }),
+      body: JSON.stringify({ message: "Invalid or expired token" }),
     };
   }
 };

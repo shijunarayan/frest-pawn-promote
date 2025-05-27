@@ -2,49 +2,53 @@ import { APIGatewayProxyHandler } from "aws-lambda";
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
-  AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { successResponse, errorResponse } from "./response";
+import { errorResponse, successResponse } from "./response";
+import { getTenantContext } from "../utils/tokenUtils";
+import { hasCapability } from "../utils/accessControl";
+import { Capabilities } from "../access-control/constants/capabilities";
 
 const client = new CognitoIdentityProviderClient({});
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
-    const {
-      username,
-      password,
-      email,
-      phone,
-      requirePasswordReset,
-      sendInvite,
-    } = JSON.parse(event.body || "{}");
+    const { tenantId } = await getTenantContext(event);
 
-    const userAttributes = [
-      ...(email ? [{ Name: "email", Value: email }] : []),
-      ...(phone ? [{ Name: "phone_number", Value: phone }] : []),
-    ];
-
-    const createCommand = new AdminCreateUserCommand({
-      UserPoolId: process.env.USER_POOL_ID!,
-      Username: username,
-      MessageAction: sendInvite ? undefined : "SUPPRESS",
-      UserAttributes: userAttributes,
-    });
-
-    await client.send(createCommand);
-
-    if (!sendInvite) {
-      const passwordCommand = new AdminSetUserPasswordCommand({
-        UserPoolId: process.env.USER_POOL_ID!,
-        Username: username,
-        Password: password,
-        Permanent: !requirePasswordReset,
-      });
-
-      await client.send(passwordCommand);
+    const allowed = await hasCapability(event, Capabilities.MANAGE_USERS);
+    if (!allowed) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ message: "Forbidden" }),
+      };
     }
 
-    return successResponse({ message: "User created successfully" }, 201);
+    const { username, email, phone, password } = JSON.parse(event.body || "{}");
+
+    if (!username || !email || !password) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          message: "Missing username, email or password",
+        }),
+      };
+    }
+
+    const command = new AdminCreateUserCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: username,
+      TemporaryPassword: password,
+      MessageAction: "SUPPRESS",
+      UserAttributes: [
+        { Name: "email", Value: email },
+        { Name: "phone_number", Value: phone },
+        { Name: "custom:tenantId", Value: tenantId },
+      ],
+    });
+
+    await client.send(command);
+
+    return successResponse({ message: "User created", username });
   } catch (err) {
     console.error("Register error:", err);
     return errorResponse(err);

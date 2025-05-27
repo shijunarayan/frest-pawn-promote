@@ -1,5 +1,5 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { marshall } from "@aws-sdk/util-dynamodb";
 import { getTenantContext } from "../utils/tokenUtils";
 import { hasCapability } from "../utils/accessControl";
@@ -10,12 +10,12 @@ const tableName = process.env.ROLES_TABLE!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   const roleId = event.pathParameters?.roleId;
-  const { capabilities } = JSON.parse(event.body || "{}");
+  const { label } = JSON.parse(event.body || "{}");
 
-  if (!roleId || !Array.isArray(capabilities)) {
+  if (!roleId || !label) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ message: "Missing roleId or capabilities" }),
+      body: JSON.stringify({ message: "Missing roleId or label" }),
     };
   }
 
@@ -31,22 +31,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     await client.send(
-      new UpdateItemCommand({
+      new PutItemCommand({
         TableName: tableName,
-        Key: marshall({ tenantId, roleId }),
-        UpdateExpression: "SET capabilities = :capabilities",
-        ExpressionAttributeValues: marshall({
-          ":capabilities": capabilities,
-        }),
+        Item: marshall({ tenantId, roleId, label }),
       })
     );
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Capabilities updated", roleId }),
+      body: JSON.stringify({ message: "Role upserted", roleId, label }),
     };
   } catch (err) {
-    console.error("Error updating role capabilities", err);
+    console.error("Error upserting role:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Internal Server Error" }),
