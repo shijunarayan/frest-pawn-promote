@@ -8,7 +8,10 @@
     "cdk": "cdk",
     "deploy": "npx cdk deploy --app \"npx ts-node --prefer-ts-exts infrastructure/bin/infrastructure.ts\"",
     "synth": "npx cdk synth --app \"npx ts-node --prefer-ts-exts infrastructure/bin/infrastructure.ts\"",
-    "destroy": "npx cdk destroy --app \"npx ts-node --prefer-ts-exts infrastructure/bin/infrastructure.ts\""
+    "destroy": "npx cdk destroy --app \"npx ts-node --prefer-ts-exts infrastructure/bin/infrastructure.ts\"",
+    "seed": "ts-node infrastructure/scripts/seed-data.ts",
+    "create-admin": "bash infrastructure/scripts/create-admin-user.sh",
+    "init-dev": "npm run deploy && npm run seed && npm run create-admin"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.812.0",

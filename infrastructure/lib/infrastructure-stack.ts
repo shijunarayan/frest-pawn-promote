@@ -219,8 +219,8 @@ export class InfrastructureStack extends Stack {
       // Auth
       { path: "register", method: "POST", lambda: registerLambda },
       { path: "confirm", method: "POST", lambda: confirmLambda },
-      { path: "login", method: "POST", lambda: refreshLambda },
-      { path: "refresh", method: "POST", lambda: loginLambda },
+      { path: "login", method: "POST", lambda: loginLambda },
+      { path: "refresh", method: "POST", lambda: refreshLambda },
       { path: "forgot/initiate", method: "POST", lambda: forgotPasswordLambda },
       {
         path: "forgot/reset",
