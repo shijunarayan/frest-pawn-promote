@@ -9,8 +9,11 @@ import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
+  AdminGetUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { RegisterRequest } from "@/types/register";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { client } from "@/services/utils/dynamodb";
 
 const cognito = new CognitoIdentityProviderClient({});
 
@@ -24,6 +27,7 @@ export const handler = withTenantContext(
       password,
       requirePasswordReset = true,
       sendInvite = false,
+      roles,
     } = body;
 
     if (!username) {
@@ -59,6 +63,31 @@ export const handler = withTenantContext(
           Username: username,
           Password: password!,
           Permanent: !requirePasswordReset,
+        })
+      );
+    }
+
+    // 2. Get userId (Cognito sub)
+    const getUserCommand = new AdminGetUserCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: username,
+    });
+    const { UserAttributes } = await cognito.send(getUserCommand);
+    const userId = UserAttributes?.find((attr) => attr.Name === "sub")?.Value;
+
+    if (!userId) {
+      return errorResponse("Failed to retrieve Cognito userId (sub)", 500);
+    }
+
+    for (const roleId of roles) {
+      await client.send(
+        new PutCommand({
+          TableName: process.env.USER_ROLES_TABLE!,
+          Item: {
+            tenantId,
+            userId: userId,
+            roleId,
+          },
         })
       );
     }

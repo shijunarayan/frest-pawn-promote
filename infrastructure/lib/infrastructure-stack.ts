@@ -8,6 +8,7 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Stack, StackProps, CfnOutput, RemovalPolicy, Tags } from "aws-cdk-lib";
 import * as cdk from "aws-cdk-lib";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
 interface InfrastructureStackProps extends StackProps {
   envName: string;
@@ -49,30 +50,13 @@ export class InfrastructureStack extends Stack {
     // 🎯 Tables
     const userRolesTable = createTable("UserRolesTable", "tenantId", "userId");
     const rolesTable = createTable("RolesTable", "tenantId", "roleId");
-    const roleCapabilitiesTable = createTable(
-      "RoleCapabilitiesTable",
-      "tenantId",
-      "roleId"
-    );
     const capabilitiesTable = createTable("CapabilitiesTable", "tenantId");
     const menuConfigTable = createTable("MenuConfigTable", "tenantId");
-
-    const lambdaEnvironment = {
-      REGION: props.env?.region || "ap-south-1",
-      CORS_ORIGINS: props.corsOrigins.join(","), // ✅ inject here
-      ENV_NAME: props.envName, // optional, but helpful
-      USER_ROLES_TABLE: userRolesTable.tableName,
-      ROLES_TABLE: rolesTable.tableName,
-      ROLE_CAPABILITIES_TABLE: roleCapabilitiesTable.tableName,
-      CAPABILITIES_TABLE: capabilitiesTable.tableName,
-      MENU_CONFIG_TABLE: menuConfigTable.tableName,
-    };
 
     // 📌 Give all Lambdas full access to their respective tables (refactorable)
     const allTables = [
       userRolesTable,
       rolesTable,
-      roleCapabilitiesTable,
       capabilitiesTable,
       menuConfigTable,
     ];
@@ -84,13 +68,6 @@ export class InfrastructureStack extends Stack {
         table.grantReadWriteData(fn);
       });
     });
-
-    // 📦 Export env vars for use elsewhere
-    for (const [key, value] of Object.entries(lambdaEnvironment)) {
-      new cdk.CfnOutput(this, key, {
-        value,
-      });
-    }
 
     // 🧑‍💻 Cognito User Pool
     const userPool = new cognito.UserPool(this, "UserPool", {
@@ -126,18 +103,37 @@ export class InfrastructureStack extends Stack {
       resources: [userPool.userPoolArn],
     });
 
+    const lambdaEnvironment = {
+      REGION: props.env?.region || "ap-south-1",
+      CORS_ORIGINS: props.corsOrigins.join(","), // ✅ inject here
+      ENV_NAME: props.envName, // optional, but helpful
+      USER_ROLES_TABLE: userRolesTable.tableName,
+      ROLES_TABLE: rolesTable.tableName,
+      CAPABILITIES_TABLE: capabilitiesTable.tableName,
+      MENU_CONFIG_TABLE: menuConfigTable.tableName,
+    };
+
+    // 📦 Export env vars for use elsewhere
+    for (const [key, value] of Object.entries(lambdaEnvironment)) {
+      new cdk.CfnOutput(this, key, {
+        value,
+      });
+    }
+
     // 🧬 Lambda Functions
     const createLambda = (name: string, folder: string, handler: string) => {
-      const fn = new lambda.Function(this, name, {
-        runtime: lambda.Runtime.NODEJS_18_X,
-        handler: `${handler}.handler`,
-        code: lambda.Code.fromAsset(
-          path.join(__dirname, `../../services/${folder}`)
-        ),
+      const fn = new NodejsFunction(this, `${name}Lambda`, {
+        entry: path.join(__dirname, `../../services/${folder}/${handler}.ts`),
+        handler: "handler",
         environment: {
           ...lambdaEnvironment,
           USER_POOL_ID: userPool.userPoolId,
           USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          tsconfig: path.join(__dirname, "../../tsconfig.json"),
         },
       });
       fn.addToRolePolicy(cognitoPolicy);
@@ -145,47 +141,27 @@ export class InfrastructureStack extends Stack {
     };
 
     // === Auth-Service Lambdas ===
-    const loginLambda = createLambda("LoginFunction", "auth-service", "login");
-    const registerLambda = createLambda(
-      "RegisterFunction",
-      "auth-service",
-      "register"
-    );
-    const confirmLambda = createLambda(
-      "ConfirmFunction",
-      "auth-service",
-      "confirm"
-    );
+    const registerLambda = createLambda("Register", "auth-service", "register");
+    const confirmLambda = createLambda("Confirm", "auth-service", "confirm");
+    const loginLambda = createLambda("Login", "auth-service", "login");
+    const refreshLambda = createLambda("Refresh", "auth-service", "refresh");
     const forgotPasswordLambda = createLambda(
-      "ForgotPasswordFunction",
+      "ForgotPassword",
       "auth-service",
-      "forgot.initiateForgotPassword"
+      "initiateForgotPassword"
     );
     const confirmForgotPasswordLambda = createLambda(
-      "ConfirmForgotPasswordFunction",
+      "ConfirmForgotPassword",
       "auth-service",
-      "forgot.confirmForgotPassword"
-    );
-    const sessionLambda = createLambda(
-      "SessionFunction",
-      "auth-service",
-      "session"
+      "confirmForgotPassword"
     );
 
     // === Access-Control Lambdas ===
     const lambdas = {
-      getMenu: createLambda("GetMenu", "access-control", "menu"),
-      getRoles: createLambda("GetRoles", "access-control", "roles"),
-      getUserRole: createLambda("GetUserRole", "access-control", "user-role"),
-      getMenuConfig: createLambda(
-        "GetMenuConfig",
+      getUserRoles: createLambda(
+        "GetUserRoles",
         "access-control",
-        "menu-config"
-      ),
-      getCapabilities: createLambda(
-        "GetCapabilities",
-        "access-control",
-        "capabilities"
+        "user-roles"
       ),
       postUserRoles: createLambda(
         "PostUserRoles",
@@ -197,11 +173,38 @@ export class InfrastructureStack extends Stack {
         "access-control",
         "user-roles-patch"
       ),
-      postRoles: createLambda("PostRoles", "access-control", "roles-post"),
-      patchRoleCapabilities: createLambda(
-        "PatchRoleCapabilities",
+      getMyRoles: createLambda(
+        "GetCurrentUserRoles",
         "access-control",
-        "role-capabilities-patch"
+        "user-roles-me"
+      ),
+      getAllRoles: createLambda("GetAllRoles", "access-control", "roles"),
+      putCustomRoles: createLambda(
+        "PutCustomRoles",
+        "access-control",
+        "roles-put"
+      ),
+      postCustomRoles: createLambda(
+        "PostCustomRoles",
+        "access-control",
+        "roles-post"
+      ),
+
+      getMenu: createLambda("GetMenu", "access-control", "menu"),
+      getMenuConfig: createLambda(
+        "GetMenuConfig",
+        "access-control",
+        "menu-config"
+      ),
+      patchMenuConfig: createLambda(
+        "PatchMenuConfig",
+        "access-control",
+        "menu-config-patch"
+      ),
+      getCapabilities: createLambda(
+        "GetCapabilities",
+        "access-control",
+        "capabilities"
       ),
     };
 
@@ -214,55 +217,56 @@ export class InfrastructureStack extends Stack {
     // === All Routes ===
     const routeMap = [
       // Auth
-      { path: "login", method: "POST", lambda: loginLambda },
       { path: "register", method: "POST", lambda: registerLambda },
       { path: "confirm", method: "POST", lambda: confirmLambda },
+      { path: "login", method: "POST", lambda: refreshLambda },
+      { path: "refresh", method: "POST", lambda: loginLambda },
       { path: "forgot/initiate", method: "POST", lambda: forgotPasswordLambda },
       {
         path: "forgot/reset",
         method: "POST",
         lambda: confirmForgotPasswordLambda,
       },
-      { path: "session", method: "GET", lambda: sessionLambda },
-
       // Access Control
-      { path: "access-control/menu", method: "GET", lambda: lambdas.getMenu },
-      { path: "access-control/roles", method: "GET", lambda: lambdas.getRoles },
+      { path: "menu", method: "GET", lambda: lambdas.getMenu },
       {
-        path: "access-control/user-roles/{username}",
-        method: "GET",
-        lambda: lambdas.getUserRole,
-      },
-      {
-        path: "access-control/menu-config",
+        path: "config/menu",
         method: "GET",
         lambda: lambdas.getMenuConfig,
       },
       {
-        path: "access-control/capabilities",
+        path: "config/menu",
+        method: "PATCH",
+        lambda: lambdas.patchMenuConfig,
+      },
+      {
+        path: "capabilities",
         method: "GET",
         lambda: lambdas.getCapabilities,
       },
       {
-        path: "access-control/user-roles",
+        path: "users/roles",
+        method: "GET",
+        lambda: lambdas.getMyRoles,
+      },
+      { path: "roles", method: "GET", lambda: lambdas.getAllRoles },
+      {
+        path: "users/{userId}/roles",
+        method: "GET",
+        lambda: lambdas.getUserRoles,
+      },
+      {
+        path: "user/roles",
         method: "POST",
         lambda: lambdas.postUserRoles,
       },
       {
-        path: "access-control/user-roles/{username}",
+        path: "users/{userId}/roles",
         method: "PATCH",
         lambda: lambdas.patchUserRoles,
       },
-      {
-        path: "access-control/roles",
-        method: "POST",
-        lambda: lambdas.postRoles,
-      },
-      {
-        path: "access-control/role-capabilities/{roleId}",
-        method: "PATCH",
-        lambda: lambdas.patchRoleCapabilities,
-      },
+      { path: "custom/roles", method: "POST", lambda: lambdas.postCustomRoles },
+      { path: "custom/roles", method: "PUT", lambda: lambdas.putCustomRoles },
     ];
 
     const addedCorsTo: Set<string> = new Set();
@@ -336,11 +340,6 @@ export class InfrastructureStack extends Stack {
     new CfnOutput(this, `${envName}UserRolesTable`, {
       value: userRolesTable.tableName,
       exportName: `UserRolesTable-${envName}`,
-    });
-
-    new CfnOutput(this, `${envName}RoleCapabilitiesTable`, {
-      value: roleCapabilitiesTable.tableName,
-      exportName: `RoleCapabilitiesTable-${envName}`,
     });
 
     new CfnOutput(this, `${envName}MenuConfigTable`, {

@@ -1,23 +1,28 @@
 import { BatchGetCommand } from "@aws-sdk/lib-dynamodb";
 import { client } from "@/services/utils/dynamodb";
+import { Role } from "@/types/role";
 
 export async function getRoleCapabilitiesBatch(
   tenantId: string,
   roles: string[]
 ): Promise<string[]> {
-  const keys = roles.map((role) => ({ tenantId, role }));
+  if (!roles.length) return [];
+
+  const keys = roles.map((roleId) => ({ tenantId, roleId }));
 
   const result = await client.send(
     new BatchGetCommand({
       RequestItems: {
-        [process.env.ROLE_CAPABILITIES_TABLE!]: {
+        [process.env.ROLES_TABLE!]: {
           Keys: keys,
         },
       },
     })
   );
 
-  const capabilities =
-    result.Responses?.[process.env.ROLE_CAPABILITIES_TABLE!] ?? [];
-  return [...new Set(capabilities.flatMap((r: any) => r.capabilities))];
+  const roleItems =
+    (result.Responses?.[process.env.ROLES_TABLE!] as Role[]) ?? [];
+
+  const capabilities = roleItems.flatMap((r: Role) => r.capabilities ?? []);
+  return [...new Set(capabilities)];
 }

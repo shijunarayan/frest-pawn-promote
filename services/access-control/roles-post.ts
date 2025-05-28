@@ -23,7 +23,7 @@ export const handler = withTenantContext(
         );
       }
 
-      // Fetch existing role to check isSystem
+      // 🔒 Prevent overwriting existing roles
       const existing = await client.send(
         new GetCommand({
           TableName: process.env.ROLES_TABLE!,
@@ -31,8 +31,8 @@ export const handler = withTenantContext(
         })
       );
 
-      if (existing.Item?.isSystem) {
-        return errorResponse("Cannot modify a system-defined role", 403);
+      if (existing.Item) {
+        return errorResponse("Role already exists", 409);
       }
 
       const now = new Date().toISOString();
@@ -43,8 +43,8 @@ export const handler = withTenantContext(
         description,
         isSystem: false,
         capabilities,
-        createdAt: existing.Item?.createdAt ?? now,
-        createdById: existing.Item?.createdById ?? userId,
+        createdAt: now,
+        createdById: userId,
         modifiedAt: now,
         modifiedById: userId,
       };
@@ -56,7 +56,7 @@ export const handler = withTenantContext(
         })
       );
 
-      return successResponse({ message: "Role saved successfully." });
+      return successResponse({ message: "Role created successfully." });
     }
   )
 );

@@ -37,7 +37,6 @@ async function runSeed() {
     // Adjust the file paths if needed based on where you place seed-data.ts
     const capabilities = await seedJson("./capabilities.json");
     const rawRoles = await seedJson("./roles.json");
-    const rawRoleCapabilities = await seedJson("./role-capabilities.json");
 
     // Convert { roleId: capabilities[] } → [{ tenantId, roleId, capabilities }]
     const rolesData = Object.entries(rawRoles).map(([roleId, label]) => ({
@@ -46,15 +45,6 @@ async function runSeed() {
       label,
     }));
 
-    // Convert { roleId: capabilities[] } → [{ tenantId, roleId, capabilities }]
-    const roleCapabilitiesData = Object.entries(rawRoleCapabilities).map(
-      ([roleId, capabilities]) => ({
-        tenantId: "demo-tenant",
-        roleId,
-        capabilities,
-      })
-    );
-    await seedTable(process.env.ROLE_CAPABILITIES_TABLE!, roleCapabilitiesData);
     await seedTable(process.env.CAPABILITIES_TABLE!, capabilities);
     await seedTable(process.env.ROLES_TABLE!, rolesData);
 

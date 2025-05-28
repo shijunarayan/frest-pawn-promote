@@ -5,4 +5,5 @@ export type RegisterRequest = {
   phone?: string;
   requirePasswordReset?: boolean;
   sendInvite?: boolean;
+  roles: string[];
 };

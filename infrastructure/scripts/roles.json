@@ -1,26 +1,62 @@
 [
   {
-    "id": "Admin",
-    "label": "Administrator"
+    "roleId": "Admin",
+    "label": "Administrator",
+    "description": "Full system access across all modules",
+    "isSystem": true,
+    "capabilities": ["*"],
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdById": "system",
+    "modifiedAt": "2024-01-01T00:00:00Z",
+    "modifiedById": "system"
   },
   {
-    "id": "WarehouseManager",
-    "label": "Warehouse Manager"
+    "roleId": "WarehouseManager",
+    "label": "Warehouse Manager",
+    "description": "Manage inventory, assign roles, and oversee staff",
+    "isSystem": true,
+    "capabilities": [
+      "manage:inventory",
+      "view:inventory",
+      "assign:roles",
+      "view:users"
+    ],
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdById": "system",
+    "modifiedAt": "2024-01-01T00:00:00Z",
+    "modifiedById": "system"
   },
   {
-    "id": "Accountant",
-    "label": "Accountant"
+    "roleId": "Accountant",
+    "label": "Accountant",
+    "description": "Handle billing and payment records",
+    "isSystem": true,
+    "capabilities": ["view:billing", "manage:invoices", "view:payments"],
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdById": "system",
+    "modifiedAt": "2024-01-01T00:00:00Z",
+    "modifiedById": "system"
   },
   {
-    "id": "Operator",
-    "label": "Forklift Operator"
+    "roleId": "Security",
+    "label": "Security Officer",
+    "description": "Monitor visitors and gate logs",
+    "isSystem": true,
+    "capabilities": ["view:visitors", "log:entry", "log:exit"],
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdById": "system",
+    "modifiedAt": "2024-01-01T00:00:00Z",
+    "modifiedById": "system"
   },
   {
-    "id": "Auditor",
-    "label": "Auditor"
-  },
-  {
-    "id": "Security",
-    "label": "Security Officer"
+    "roleId": "Auditor",
+    "label": "Auditor",
+    "description": "View logs and audit activity",
+    "isSystem": true,
+    "capabilities": ["view:logs", "export:activity"],
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdById": "system",
+    "modifiedAt": "2024-01-01T00:00:00Z",
+    "modifiedById": "system"
   }
 ]

@@ -10,7 +10,10 @@ export async function hasCapability(
 ): Promise<boolean> {
   const cacheKey = `${tenantId}:${userId}`;
   if (capabilityCache.has(cacheKey)) {
-    return capabilityCache.get(cacheKey)!.includes(requiredCapability);
+    return (
+      capabilityCache.get(cacheKey)!.includes(requiredCapability) ||
+      capabilityCache.get(cacheKey)!.includes("*")
+    );
   }
 
   const roles = await getUserRolesFromDb(tenantId, userId);
@@ -19,5 +22,8 @@ export async function hasCapability(
   const capabilities = await getRoleCapabilitiesBatch(tenantId, roles);
 
   capabilityCache.set(cacheKey, capabilities);
-  return capabilities.includes(requiredCapability);
+  return (
+    capabilities.includes(requiredCapability) ||
+    capabilityCache.get(cacheKey)!.includes("*")
+  );
 }
