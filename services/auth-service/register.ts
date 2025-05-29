@@ -38,7 +38,7 @@ export const handler = withTenantContext(
       return errorResponse("Password is required when not sending invite", 400);
     }
 
-    const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
+    const USER_POOL_ID = process.env.USER_POOL_ID!;
     const userAttributes = [
       { Name: "custom:tenantId", Value: tenantId },
       email && { Name: "email", Value: email },

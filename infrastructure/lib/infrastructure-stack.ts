@@ -9,6 +9,7 @@ import { Stack, StackProps, CfnOutput, RemovalPolicy, Tags } from "aws-cdk-lib";
 import * as cdk from "aws-cdk-lib";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 interface InfrastructureStackProps extends StackProps {
   envName: string;
@@ -50,7 +51,11 @@ export class InfrastructureStack extends Stack {
     // 🎯 Tables
     const userRolesTable = createTable("UserRolesTable", "tenantId", "userId");
     const rolesTable = createTable("RolesTable", "tenantId", "roleId");
-    const capabilitiesTable = createTable("CapabilitiesTable", "tenantId");
+    const capabilitiesTable = createTable(
+      "CapabilitiesTable",
+      "tenantId",
+      "id"
+    );
     const menuConfigTable = createTable("MenuConfigTable", "tenantId");
 
     // 📌 Give all Lambdas full access to their respective tables (refactorable)
@@ -60,14 +65,6 @@ export class InfrastructureStack extends Stack {
       capabilitiesTable,
       menuConfigTable,
     ];
-
-    const accessLambdas: lambda.Function[] = []; // add references to your access-control lambdas here
-
-    allTables.forEach((table) => {
-      accessLambdas.forEach((fn) => {
-        table.grantReadWriteData(fn);
-      });
-    });
 
     // 🧑‍💻 Cognito User Pool
     const userPool = new cognito.UserPool(this, "UserPool", {
@@ -125,6 +122,7 @@ export class InfrastructureStack extends Stack {
       const fn = new NodejsFunction(this, `${name}Lambda`, {
         entry: path.join(__dirname, `../../services/${folder}/${handler}.ts`),
         handler: "handler",
+        runtime: Runtime.NODEJS_LATEST,
         environment: {
           ...lambdaEnvironment,
           USER_POOL_ID: userPool.userPoolId,
@@ -139,25 +137,24 @@ export class InfrastructureStack extends Stack {
       fn.addToRolePolicy(cognitoPolicy);
       return fn;
     };
-
-    // === Auth-Service Lambdas ===
-    const registerLambda = createLambda("Register", "auth-service", "register");
-    const confirmLambda = createLambda("Confirm", "auth-service", "confirm");
-    const loginLambda = createLambda("Login", "auth-service", "login");
-    const refreshLambda = createLambda("Refresh", "auth-service", "refresh");
-    const forgotPasswordLambda = createLambda(
-      "ForgotPassword",
-      "auth-service",
-      "initiateForgotPassword"
-    );
-    const confirmForgotPasswordLambda = createLambda(
-      "ConfirmForgotPassword",
-      "auth-service",
-      "confirmForgotPassword"
-    );
-
-    // === Access-Control Lambdas ===
     const lambdas = {
+      // === Auth-Service Lambdas ===
+      registerLambda: createLambda("Register", "auth-service", "register"),
+      confirmLambda: createLambda("Confirm", "auth-service", "confirm"),
+      loginLambda: createLambda("Login", "auth-service", "login"),
+      refreshLambda: createLambda("Refresh", "auth-service", "refresh"),
+      forgotPasswordLambda: createLambda(
+        "ForgotPassword",
+        "auth-service",
+        "initiateForgotPassword"
+      ),
+      confirmForgotPasswordLambda: createLambda(
+        "ConfirmForgotPassword",
+        "auth-service",
+        "confirmForgotPassword"
+      ),
+
+      // === Access-Control Lambdas ===
       getUserRoles: createLambda(
         "GetUserRoles",
         "access-control",
@@ -208,6 +205,13 @@ export class InfrastructureStack extends Stack {
       ),
     };
 
+    // Assign permission to all tables
+    allTables.forEach((table) => {
+      Object.values(lambdas).forEach((fn) => {
+        table.grantReadWriteData(fn);
+      });
+    });
+
     // === API Gateway ===
     const api = new apigateway.RestApi(this, "FrestPawnAPI", {
       restApiName: "Frest Pawn API",
@@ -217,15 +221,19 @@ export class InfrastructureStack extends Stack {
     // === All Routes ===
     const routeMap = [
       // Auth
-      { path: "register", method: "POST", lambda: registerLambda },
-      { path: "confirm", method: "POST", lambda: confirmLambda },
-      { path: "login", method: "POST", lambda: loginLambda },
-      { path: "refresh", method: "POST", lambda: refreshLambda },
-      { path: "forgot/initiate", method: "POST", lambda: forgotPasswordLambda },
+      { path: "register", method: "POST", lambda: lambdas.registerLambda },
+      { path: "confirm", method: "POST", lambda: lambdas.confirmLambda },
+      { path: "login", method: "POST", lambda: lambdas.loginLambda },
+      { path: "refresh", method: "POST", lambda: lambdas.refreshLambda },
+      {
+        path: "forgot/initiate",
+        method: "POST",
+        lambda: lambdas.forgotPasswordLambda,
+      },
       {
         path: "forgot/reset",
         method: "POST",
-        lambda: confirmForgotPasswordLambda,
+        lambda: lambdas.confirmForgotPasswordLambda,
       },
       // Access Control
       { path: "menu", method: "GET", lambda: lambdas.getMenu },

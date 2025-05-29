@@ -1,39 +1,37 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 
 const REGION = process.env.AWS_REGION!;
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
+const USER_POOL_ID = process.env.USER_POOL_ID!;
+const USER_POOL_CLIENT_ID = process.env.USER_POOL_CLIENT_ID!;
+
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: USER_POOL_ID,
+  clientId: USER_POOL_CLIENT_ID,
+  tokenUse: "id", // or "access" if you want to verify access tokens
+});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
-    const { createRemoteJWKSet, jwtVerify } = await import("jose");
+    const cookieHeader = event.headers?.cookie || event.headers?.Cookie || "";
 
-    const JWKS = createRemoteJWKSet(
-      new URL(
-        `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}/.well-known/jwks.json`
-      )
-    );
-
-    const cookieHeader = event.headers.Cookie || event.headers.cookie || "";
-    const accessToken = cookieHeader
+    const idToken = cookieHeader
       .split(";")
-      .find((c) => c.trim().startsWith("accessToken="))
+      .find((c) => c.trim().startsWith("idToken="))
       ?.split("=")[1];
 
-    if (!accessToken) {
+    if (!idToken) {
       return {
         statusCode: 401,
-        body: JSON.stringify({ message: "Access token missing" }),
+        body: JSON.stringify({ message: "ID token is missing" }),
       };
     }
 
-    const { payload } = await jwtVerify(accessToken, JWKS, {
-      issuer: `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`,
-    });
+    const payload = await verifier.verify(idToken);
 
-    const userId = payload.sub as string;
-    const username = (payload["cognito:username"] ||
-      payload.username) as string;
-    const tenantId = payload["custom:tenantId"] as string;
+    const userId = String(payload.sub);
+    const username = String(payload["cognito:username"] || payload["username"]);
+    const tenantId = String(payload["custom:tenantId"]);
 
     if (!userId || !tenantId) {
       return {

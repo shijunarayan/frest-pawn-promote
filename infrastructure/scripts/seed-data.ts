@@ -39,10 +39,11 @@ async function runSeed() {
     const rawRoles = await seedJson("./roles.json");
 
     // Convert { roleId: capabilities[] } → [{ tenantId, roleId, capabilities }]
-    const rolesData = Object.entries(rawRoles).map(([roleId, label]) => ({
-      tenantId: "demo-tenant",
+    const rolesData = rawRoles.map(({ roleId, label, ...rest }) => ({
+      tenantId: TENANT_ID,
       roleId,
       label,
+      ...rest,
     }));
 
     await seedTable(process.env.CAPABILITIES_TABLE!, capabilities);

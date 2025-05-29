@@ -1,34 +1,26 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
-import { TenantContext } from "../../types/context";
+import { CognitoJwtVerifier } from "aws-jwt-verify";
 
-export async function getTenantContext(
-  event: APIGatewayProxyEvent
-): Promise<TenantContext | null> {
-  const { createRemoteJWKSet, jwtVerify } = await import("jose");
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.USER_POOL_ID!,
+  tokenUse: "id",
+  clientId: process.env.USER_POOL_CLIENT_ID!,
+});
 
-  const cookieHeader = event.headers.Cookie || event.headers.cookie || "";
-  const accessToken = cookieHeader
+export async function getTenantContext(event: APIGatewayProxyEvent) {
+  const cookieHeader = event.headers?.cookie || event.headers?.Cookie || "";
+  const idToken = cookieHeader
     .split(";")
-    .find((c) => c.trim().startsWith("accessToken="))
+    .find((c) => c.trim().startsWith("idToken="))
     ?.split("=")[1];
 
-  if (!accessToken) throw new Error("Missing access token");
+  if (!idToken) throw new Error("Missing id token");
 
-  const REGION = process.env.AWS_REGION!;
-  const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
-  const JWKS = createRemoteJWKSet(
-    new URL(
-      `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}/.well-known/jwks.json`
-    )
-  );
+  const payload = await verifier.verify(idToken);
 
-  const { payload } = await jwtVerify(accessToken, JWKS, {
-    issuer: `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`,
-  });
-
-  const userId = payload.sub as string;
-  const username = payload["username"] as string;
-  const tenantId = payload["custom:tenantId"] as string;
+  const userId = String(payload.sub);
+  const username = String(payload["cognito:username"]);
+  const tenantId = String(payload["custom:tenantId"]);
 
   if (!userId || !username || !tenantId) return null;
 
