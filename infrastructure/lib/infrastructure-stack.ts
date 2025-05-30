@@ -141,6 +141,7 @@ export class InfrastructureStack extends Stack {
       // === Auth-Service Lambdas ===
       registerLambda: createLambda("Register", "auth-service", "register"),
       confirmLambda: createLambda("Confirm", "auth-service", "confirm"),
+      sessionLambda: createLambda("Session", "auth-service", "session"),
       loginLambda: createLambda("Login", "auth-service", "login"),
       refreshLambda: createLambda("Refresh", "auth-service", "refresh"),
       forgotPasswordLambda: createLambda(
@@ -223,6 +224,7 @@ export class InfrastructureStack extends Stack {
       // Auth
       { path: "register", method: "POST", lambda: lambdas.registerLambda },
       { path: "confirm", method: "POST", lambda: lambdas.confirmLambda },
+      { path: "session", method: "GET", lambda: lambdas.sessionLambda },
       { path: "login", method: "POST", lambda: lambdas.loginLambda },
       { path: "refresh", method: "POST", lambda: lambdas.refreshLambda },
       {
