@@ -19,12 +19,20 @@ export const handler = withTenantContext(
       const capabilities = await getRoleCapabilitiesBatch(tenantId, roles);
       const config = await getMenuConfig(tenantId);
 
-      if (!config || !Array.isArray(config.items)) {
-        return errorResponse("Menu config missing or invalid", 500);
+      if (
+        !config ||
+        (!Array.isArray(config.system_items) &&
+          !Array.isArray(config.configurable_items))
+      ) {
+        return errorResponse("Menu config missing or invalid", 502);
       }
 
-      // Filter menu items based on user capabilities
-      const filteredItems = config.items.filter((item: any) => {
+      const mergedItems = [
+        ...(config.system_items || []),
+        ...(config.configurable_items || []),
+      ];
+
+      const filteredItems = mergedItems.filter((item: any) => {
         const roleMatch =
           roles.includes("*") ||
           item.roles?.some((r: string) => roles.includes(r));
@@ -34,7 +42,10 @@ export const handler = withTenantContext(
         return roleMatch || capabilityMatch;
       });
 
-      return successResponse(filteredItems);
+      return successResponse({
+        ...config,
+        items: filteredItems,
+      });
     }
   )
 );
