@@ -4,6 +4,10 @@ import {
   InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { successResponse, errorResponse } from "./response";
+import { decodeIdToken } from "@/services/utils/tokenUtils";
+import { getUserRolesFromDb } from "@/services/adapters/rolesAdapter";
+import { getRoleCapabilitiesBatch } from "@/services/adapters/capabilitiesAdapter";
+import { expandWildcardCapabilities } from "@/services/utils/accessControl";
 
 const client = new CognitoIdentityProviderClient({});
 
@@ -32,13 +36,37 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     const { AccessToken, IdToken, RefreshToken } = tokens;
-    return successResponse({ success: true }, event, 200, {
-      "Set-Cookie": [
-        `accessToken=${AccessToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
-        `idToken=${IdToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
-        `refreshToken=${RefreshToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
-      ],
-    });
+
+    if (IdToken) {
+      const payload = await decodeIdToken(IdToken);
+      const userId = String(payload.sub);
+      const username = String(payload["cognito:username"]);
+      const tenantId = String(payload["custom:tenantId"]);
+
+      const roles = await getUserRolesFromDb(tenantId, userId);
+      const rawCapabilities = await getRoleCapabilitiesBatch(tenantId, roles);
+      const effectiveCapabilities = expandWildcardCapabilities(rawCapabilities);
+
+      return successResponse(
+        {
+          username,
+          tenantId,
+          roles,
+          capabilities: effectiveCapabilities,
+        },
+        event,
+        200,
+        {
+          "Set-Cookie": [
+            `accessToken=${AccessToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
+            `idToken=${IdToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`,
+            `refreshToken=${RefreshToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
+          ],
+        }
+      );
+    } else {
+      return errorResponse("Login failed to get idToken", event, 500);
+    }
   } catch (err: any) {
     if (
       err.name === "NotAuthorizedException" || // wrong password

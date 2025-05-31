@@ -1,5 +1,6 @@
 import { getUserRolesFromDb } from "@/services/adapters/rolesAdapter";
 import { getRoleCapabilitiesBatch } from "@/services/adapters/capabilitiesAdapter";
+import { Capabilities as CapabilityList } from "@/services/access-control/constants/capabilities";
 
 const capabilityCache = new Map<string, string[]>();
 
@@ -26,4 +27,22 @@ export async function hasCapability(
     capabilities.includes(requiredCapability) ||
     capabilityCache.get(cacheKey)!.includes("*")
   );
+}
+
+export async function getUserEffectiveCapabilities(
+  tenantId: string,
+  userId: string
+): Promise<string[]> {
+  const roles = await getUserRolesFromDb(tenantId, userId);
+  if (!roles.length) return [];
+
+  const capabilities = await getRoleCapabilitiesBatch(tenantId, roles);
+  return capabilities;
+}
+
+export function expandWildcardCapabilities(capabilities: string[]): string[] {
+  if (capabilities.includes("*")) {
+    return Object.values(CapabilityList); // All capabilities
+  }
+  return capabilities;
 }

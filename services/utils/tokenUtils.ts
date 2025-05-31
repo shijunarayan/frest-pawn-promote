@@ -33,3 +33,8 @@ export async function getTenantContext(event: APIGatewayProxyEvent) {
 
   return tenantContext;
 }
+
+export async function decodeIdToken(idToken: string) {
+  const payload = await verifier.verify(idToken);
+  return payload;
+}
