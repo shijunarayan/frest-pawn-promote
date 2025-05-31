@@ -19,6 +19,7 @@ export const handler = withTenantContext(
       if (!roleId || !description || !Array.isArray(capabilities)) {
         return errorResponse(
           "Missing or invalid roleId, description, or capabilities.",
+          event,
           400
         );
       }
@@ -32,7 +33,7 @@ export const handler = withTenantContext(
       );
 
       if (existing.Item) {
-        return errorResponse("Role already exists", 409);
+        return errorResponse("Role already exists", event, 409);
       }
 
       const now = new Date().toISOString();
@@ -56,7 +57,7 @@ export const handler = withTenantContext(
         })
       );
 
-      return successResponse({ message: "Role created successfully." });
+      return successResponse({ message: "Role created successfully." }, event);
     }
   )
 );

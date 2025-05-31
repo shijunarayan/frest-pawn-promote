@@ -11,13 +11,20 @@ export function withTenantContext(
       const tenantContext = await getTenantContext(event);
 
       if (!tenantContext) {
-        return errorResponse("Unauthorized or missing tenant info", 401);
+        return errorResponse("Unauthorized or missing tenant info", event, 401);
       }
 
       return await handler(event, tenantContext);
     } catch (err: any) {
-      console.error("Unhandled error in Lambda handler:", err);
-      return errorResponse("Internal Server Error", 500);
+      console.error(
+        "withTenantContext: Unhandled error in Lambda handler:",
+        err
+      );
+      console.error("withTenantContext: Error during request:", {
+        body: event.body,
+        headers: event.headers,
+      });
+      return errorResponse("Internal Server Error", event, 500);
     }
   };
 }

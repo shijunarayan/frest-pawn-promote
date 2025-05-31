@@ -1,5 +1,6 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { errorResponse, successResponse } from "./response";
 
 const REGION = process.env.AWS_REGION!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
@@ -21,10 +22,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       ?.split("=")[1];
 
     if (!idToken) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ message: "ID token is missing" }),
-      };
+      return errorResponse({ message: "ID token is missing" }, event, 401);
     }
 
     const payload = await verifier.verify(idToken);
@@ -34,23 +32,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const tenantId = String(payload["custom:tenantId"]);
 
     if (!userId || !tenantId) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({
-          message: "Invalid token: missing userId or tenantId",
-        }),
-      };
+      return errorResponse(
+        { message: "Invalid token: missing userId or tenantId" },
+        event,
+        403
+      );
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ userId, username, tenantId }),
-    };
+    return successResponse({ userId, username, tenantId }, event);
   } catch (err: any) {
     console.error("Token verification failed:", err);
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ message: "Invalid or expired token" }),
-    };
+    return errorResponse({ message: "Invalid or expired token" }, event, 401);
   }
 };

@@ -31,11 +31,15 @@ export const handler = withTenantContext(
     } = body;
 
     if (!username) {
-      return errorResponse("Missing required field: username", 400);
+      return errorResponse("Missing required field: username", event, 400);
     }
 
     if (!sendInvite && !password) {
-      return errorResponse("Password is required when not sending invite", 400);
+      return errorResponse(
+        "Password is required when not sending invite",
+        event,
+        400
+      );
     }
 
     const USER_POOL_ID = process.env.USER_POOL_ID!;
@@ -76,7 +80,11 @@ export const handler = withTenantContext(
     const userId = UserAttributes?.find((attr) => attr.Name === "sub")?.Value;
 
     if (!userId) {
-      return errorResponse("Failed to retrieve Cognito userId (sub)", 500);
+      return errorResponse(
+        "Failed to retrieve Cognito userId (sub)",
+        event,
+        500
+      );
     }
 
     for (const roleId of roles) {
@@ -92,6 +100,6 @@ export const handler = withTenantContext(
       );
     }
 
-    return successResponse({ message: "User registered successfully." });
+    return successResponse({ message: "User registered successfully." }, event);
   })
 );

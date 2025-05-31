@@ -15,11 +15,12 @@ export const handler = withTenantContext(
     if (!targetUserId || !Array.isArray(roles)) {
       return errorResponse(
         "Missing or invalid input. Expecting targetUserId and roles[]",
+        event,
         400
       );
     }
 
     await putUserRoles(tenantId, targetUserId, roles);
-    return successResponse({ message: "Roles assigned successfully." });
+    return successResponse({ message: "Roles assigned successfully." }, event);
   })
 );

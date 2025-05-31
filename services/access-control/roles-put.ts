@@ -19,6 +19,7 @@ export const handler = withTenantContext(
       if (!roleId || !description || !Array.isArray(capabilities)) {
         return errorResponse(
           "Missing or invalid roleId, description, or capabilities.",
+          event,
           400
         );
       }
@@ -32,7 +33,7 @@ export const handler = withTenantContext(
       );
 
       if (existing.Item?.isSystem) {
-        return errorResponse("Cannot modify a system-defined role", 403);
+        return errorResponse("Cannot modify a system-defined role", event, 403);
       }
 
       const now = new Date().toISOString();
@@ -56,7 +57,7 @@ export const handler = withTenantContext(
         })
       );
 
-      return successResponse({ message: "Role saved successfully." });
+      return successResponse({ message: "Role saved successfully." }, event);
     }
   )
 );

@@ -15,7 +15,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     );
 
     if (!username || !tempPassword || !newPassword) {
-      return errorResponse("Missing required fields", 400);
+      return errorResponse("Missing required fields", event, 400);
     }
 
     // Step 1: Initiate auth
@@ -34,7 +34,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Must be NEW_PASSWORD_REQUIRED challenge
     if (authResp.ChallengeName !== "NEW_PASSWORD_REQUIRED") {
       return errorResponse(
-        "Unexpected challenge: " + authResp.ChallengeName,
+        `Unexpected challenge: ${authResp.ChallengeName}`,
+        event,
         400
       );
     }
@@ -53,9 +54,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       })
     );
 
-    return successResponse({ message: "Password changed successfully" });
+    return successResponse({ message: "Password changed successfully" }, event);
   } catch (err) {
     console.error("Confirm error:", err);
-    return errorResponse(err);
+    return errorResponse({ message: "Unable to reset password" }, event, 500);
   }
 };

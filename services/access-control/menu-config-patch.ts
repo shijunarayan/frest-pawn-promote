@@ -15,11 +15,14 @@ export const handler = withTenantContext(
       const { patch } = body;
 
       if (!patch || typeof patch !== "object") {
-        return errorResponse("Missing or invalid 'patch' object", 400);
+        return errorResponse("Missing or invalid 'patch' object", event, 400);
       }
 
       const updated = await patchMenuConfig(tenantId, patch);
-      return successResponse({ message: "Menu config updated", updated });
+      return successResponse(
+        { message: "Menu config updated", updated },
+        event
+      );
     }
   )
 );

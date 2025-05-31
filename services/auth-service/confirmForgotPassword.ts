@@ -18,9 +18,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const client = new CognitoIdentityProviderClient({});
     await client.send(command);
-    return successResponse({ message: "Password updated successfully" });
+    return successResponse({ message: "Password updated successfully" }, event);
   } catch (err) {
     console.error("ConfirmForgotPassword error:", err);
-    return errorResponse(err);
+    return errorResponse({ message: "Unable to reset password" }, event, 500);
   }
 };

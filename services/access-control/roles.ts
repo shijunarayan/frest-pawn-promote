@@ -7,6 +7,6 @@ import { getAllRoles } from "@/services/adapters/rolesAdapter";
 export const handler = withTenantContext(
   withCapability(Capabilities.VIEW_ROLES, async (event, { tenantId }) => {
     const roles = await getAllRoles(tenantId);
-    return successResponse({ roles });
+    return successResponse({ roles }, event);
   })
 );

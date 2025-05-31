@@ -12,9 +12,9 @@ import {
 export const handler = withTenantContext(
   withCapability(
     Capabilities.CONFIGURE_MENU_ACCESS,
-    async (_event, { tenantId, userId }) => {
+    async (event, { tenantId, userId }) => {
       const roles = await getUserRolesFromDb(tenantId, userId);
-      if (!roles.length) return errorResponse("Unauthorized", 403);
+      if (!roles.length) return errorResponse("Unauthorized", event, 403);
 
       const capabilities = await getRoleCapabilitiesBatch(tenantId, roles);
       const config = await getMenuConfig(tenantId);
@@ -24,7 +24,7 @@ export const handler = withTenantContext(
         (!Array.isArray(config.system_items) &&
           !Array.isArray(config.configurable_items))
       ) {
-        return errorResponse("Menu config missing or invalid", 502);
+        return errorResponse("Menu config missing or invalid", event, 502);
       }
 
       const mergedItems = [
@@ -42,10 +42,13 @@ export const handler = withTenantContext(
         return roleMatch || capabilityMatch;
       });
 
-      return successResponse({
-        ...config,
-        items: filteredItems,
-      });
+      return successResponse(
+        {
+          ...config,
+          items: filteredItems,
+        },
+        event
+      );
     }
   )
 );

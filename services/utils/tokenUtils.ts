@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent } from "aws-lambda";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
+import { TenantContext } from "@/types/context";
 
 const verifier = CognitoJwtVerifier.create({
   userPoolId: process.env.USER_POOL_ID!,
@@ -24,5 +25,11 @@ export async function getTenantContext(event: APIGatewayProxyEvent) {
 
   if (!userId || !username || !tenantId) return null;
 
-  return { userId, username, tenantId };
+  const tenantContext: TenantContext = {
+    tenantId,
+    userId,
+    username,
+  };
+
+  return tenantContext;
 }

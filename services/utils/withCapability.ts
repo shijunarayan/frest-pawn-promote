@@ -16,7 +16,7 @@ export function withCapability(
 
     const allowed = await hasCapability(tenantId, userId, requiredCapability);
     if (!allowed) {
-      return errorResponse("Forbidden", 403);
+      return errorResponse("Forbidden", event, 403);
     }
 
     return handler(event, context);

@@ -5,6 +5,6 @@ import { getUserRolesFromDb } from "@/services/adapters/rolesAdapter";
 export const handler = withTenantContext(
   async (event, { tenantId, userId }) => {
     const roles = await getUserRolesFromDb(tenantId, userId);
-    return successResponse({ roles });
+    return successResponse({ roles }, event);
   }
 );

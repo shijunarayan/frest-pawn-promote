@@ -14,10 +14,11 @@ export const handler = withTenantContext(
     if (!userId) {
       return errorResponse(
         "Missing or invalid input. Expecting targetUserId",
+        event,
         400
       );
     }
     const roles = await getUserRolesFromDb(tenantId, userId);
-    return successResponse({ roles });
+    return successResponse({ roles }, event);
   })
 );
