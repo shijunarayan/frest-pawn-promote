@@ -49,8 +49,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
       return successResponse(
         {
+          success: true,
           username,
-          tenantId,
           roles,
           capabilities: effectiveCapabilities,
         },

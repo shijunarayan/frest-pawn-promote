@@ -144,6 +144,7 @@ export class InfrastructureStack extends Stack {
       sessionLambda: createLambda("Session", "auth-service", "session"),
       loginLambda: createLambda("Login", "auth-service", "login"),
       refreshLambda: createLambda("Refresh", "auth-service", "refresh"),
+      logoutLambda: createLambda("logout", "auth-service", "logout"),
       forgotPasswordLambda: createLambda(
         "ForgotPassword",
         "auth-service",
@@ -227,6 +228,7 @@ export class InfrastructureStack extends Stack {
       { path: "session", method: "GET", lambda: lambdas.sessionLambda },
       { path: "login", method: "POST", lambda: lambdas.loginLambda },
       { path: "refresh", method: "POST", lambda: lambdas.refreshLambda },
+      { path: "logout", method: "POST", lambda: lambdas.logoutLambda },
       {
         path: "forgot/initiate",
         method: "POST",

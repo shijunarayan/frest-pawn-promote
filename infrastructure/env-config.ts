@@ -13,7 +13,7 @@ export const environments: Record<string, EnvironmentSettings> = {
     region: "ap-south-1",
     cors: [
       "http://localhost:3000",
-      "https://frestgate.local:3000",
+      "https://frestgate.local",
       "https://main.dz7xcaktnrert.amplifyapp.com",
     ],
     tags: {
